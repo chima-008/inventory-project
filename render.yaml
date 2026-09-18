@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: inventory-api
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    preDeployCommand: php artisan migrate --force
+    envVars:
+      - key: APP_ENV
+        value: production
+
+      - key: APP_DEBUG
+        value: "false"
+
+      - key: APP_KEY
+        sync: false
+
+      - key: APP_URL
+        sync: false
+
+      - key: LOG_CHANNEL
+        value: stderr
+
+      - key: DB_CONNECTION
+        value: pgsql
+
+      - key: DB_URL
+        fromDatabase:
+          name: inventory-db
+          property: connectionString
+
+      - key: FRONTEND_URL
+        sync: false
+
+databases:
+  - name: inventory-db
+    plan: free
+    region: frankfurt
+    databaseName: inventory_project
+    user: inventory_user

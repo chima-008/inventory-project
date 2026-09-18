@@ -1,15 +1,23 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockMovementController;
-use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\UserController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 
-//Authentication routes
+// Health check
+Route::get('/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'service' => 'inventory-api',
+    ]);
+});
+
+// Authentication routes
 Route::post('/register', [AuthController::class, 'register'])
     ->middleware('throttle:register');
 
@@ -23,7 +31,7 @@ Route::get('/user', function (Request $request) {
     return \App\Http\Resources\UserResource::make($request->user());
 })->middleware('auth:sanctum');
 
-//Category routes
+// Category routes
 Route::get('/categories', [CategoryController::class, 'index'])
     ->middleware('auth:sanctum');
 
@@ -42,7 +50,7 @@ Route::patch('/categories/{category}', [CategoryController::class, 'update'])
 Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])
     ->middleware(['auth:sanctum', 'admin']);
 
-//Product routes
+// Product routes
 Route::get('/products', [ProductController::class, 'index'])
     ->middleware('auth:sanctum');
 
@@ -50,7 +58,7 @@ Route::post('/products', [ProductController::class, 'store'])
     ->middleware('auth:sanctum');
 
 Route::get('/products/low-stock', [ProductController::class, 'lowStock'])
-    ->middleware('auth:sanctum');    
+    ->middleware('auth:sanctum');
 
 Route::get('/products/{product}', [ProductController::class, 'show'])
     ->middleware('auth:sanctum');
@@ -64,18 +72,18 @@ Route::patch('/products/{product}', [ProductController::class, 'update'])
 Route::delete('/products/{product}', [ProductController::class, 'destroy'])
     ->middleware(['auth:sanctum', 'admin']);
 
-//Stock Movement routes
+// Stock movement routes
 Route::get('/products/{product}/stock-movements', [StockMovementController::class, 'index'])
     ->middleware('auth:sanctum');
 
 Route::post('/products/{product}/stock-movements', [StockMovementController::class, 'store'])
     ->middleware('auth:sanctum');
 
-//Dashboard routes
+// Dashboard routes
 Route::get('/dashboard/summary', [DashboardController::class, 'summary'])
     ->middleware('auth:sanctum');
 
-//User management routes    
+// User management routes
 Route::get('/users', [UserController::class, 'index'])
     ->middleware(['auth:sanctum', 'admin']);
 
