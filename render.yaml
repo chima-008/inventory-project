@@ -5,7 +5,6 @@ services:
     plan: free
     region: frankfurt
     healthCheckPath: /api/health
-    preDeployCommand: php artisan migrate --force
     envVars:
       - key: APP_ENV
         value: production
