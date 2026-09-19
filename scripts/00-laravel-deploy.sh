@@ -9,6 +9,10 @@ composer install \
     --optimize-autoloader \
     --no-interaction
 
+echo "Running database migrations..."
+
+php artisan migrate --force
+
 echo "Caching Laravel configuration..."
 
 php artisan config:cache
