@@ -16,9 +16,13 @@ class ProductTest extends TestCase
     public function test_authenticated_user_can_list_products(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'name' => 'Wireless Keyboard',
             'sku' => 'ELEC-KEY-001',
@@ -54,7 +58,6 @@ class ProductTest extends TestCase
                 'name' => 'Wireless Keyboard',
                 'sku' => 'ELEC-KEY-001',
             ])
-
             ->assertJsonPath('data.0.category.id', $category->id)
             ->assertJsonPath('data.0.category.name', $category->name)
             ->assertJsonPath('data.0.category.slug', $category->slug);
@@ -63,7 +66,10 @@ class ProductTest extends TestCase
     public function test_authenticated_user_can_create_a_product(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Sanctum::actingAs($user);
 
@@ -86,6 +92,8 @@ class ProductTest extends TestCase
             ->assertJsonPath('data.stock_quantity', 20);
 
         $this->assertDatabaseHas('products', [
+            'business_id' => $user->business_id,
+            'category_id' => $category->id,
             'sku' => 'ELEC-CHG-001',
             'stock_quantity' => 20,
         ]);
@@ -94,9 +102,13 @@ class ProductTest extends TestCase
     public function test_authenticated_user_can_view_a_product(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'name' => 'Office Chair',
         ]);
@@ -114,9 +126,13 @@ class ProductTest extends TestCase
     public function test_authenticated_user_can_update_product_details(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'name' => 'Old Product Name',
             'stock_quantity' => 25,
@@ -143,6 +159,7 @@ class ProductTest extends TestCase
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
+            'business_id' => $user->business_id,
             'name' => 'Updated Product Name',
             'stock_quantity' => 25,
         ]);
@@ -151,9 +168,13 @@ class ProductTest extends TestCase
     public function test_product_update_cannot_change_stock_quantity(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 25,
         ]);
@@ -178,6 +199,7 @@ class ProductTest extends TestCase
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
+            'business_id' => $user->business_id,
             'stock_quantity' => 25,
         ]);
     }
@@ -188,9 +210,12 @@ class ProductTest extends TestCase
             'role' => 'manager',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -212,9 +237,12 @@ class ProductTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -253,6 +281,203 @@ class ProductTest extends TestCase
         $response
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['category_id']);
+    }
+
+    public function test_different_business_can_use_the_same_product_slug_and_sku(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $categoryA = Category::factory()->create([
+            'business_id' => $businessAUser->business_id,
+        ]);
+
+        $categoryB = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        Product::factory()->create([
+            'business_id' => $businessAUser->business_id,
+            'category_id' => $categoryA->id,
+            'slug' => 'wireless-keyboard',
+            'sku' => 'KEY-001',
+        ]);
+
+        Sanctum::actingAs($businessBUser);
+
+        $response = $this->postJson('/api/products', [
+            'category_id' => $categoryB->id,
+            'name' => 'Wireless Keyboard',
+            'slug' => 'wireless-keyboard',
+            'sku' => 'KEY-001',
+            'description' => 'Same identifiers in another business.',
+            'price' => 20000,
+            'stock_quantity' => 10,
+            'low_stock_threshold' => 5,
+            'is_active' => true,
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.slug', 'wireless-keyboard')
+            ->assertJsonPath('data.sku', 'KEY-001');
+    }
+
+    public function test_user_cannot_list_products_from_another_business(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $categoryA = Category::factory()->create([
+            'business_id' => $businessAUser->business_id,
+        ]);
+
+        $categoryB = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        Product::factory()->create([
+            'business_id' => $businessAUser->business_id,
+            'category_id' => $categoryA->id,
+            'name' => 'Business A Product',
+        ]);
+
+        Product::factory()->create([
+            'business_id' => $businessBUser->business_id,
+            'category_id' => $categoryB->id,
+            'name' => 'Business B Product',
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->getJson('/api/products');
+
+        $response
+            ->assertOk()
+            ->assertJsonFragment([
+                'name' => 'Business A Product',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Business B Product',
+            ]);
+    }
+
+    public function test_user_cannot_view_another_business_product(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $categoryB = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        $product = Product::factory()->create([
+            'business_id' => $businessBUser->business_id,
+            'category_id' => $categoryB->id,
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->getJson("/api/products/{$product->id}");
+
+        $response->assertNotFound();
+    }
+
+    public function test_user_cannot_update_another_business_product(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $categoryB = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        $product = Product::factory()->create([
+            'business_id' => $businessBUser->business_id,
+            'category_id' => $categoryB->id,
+            'name' => 'Business B Product',
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->putJson("/api/products/{$product->id}", [
+            'category_id' => $categoryB->id,
+            'name' => 'Hacked Product',
+            'slug' => 'hacked-product',
+            'sku' => 'HACKED-001',
+            'description' => 'This must not be allowed.',
+            'price' => 999999,
+            'low_stock_threshold' => 1,
+            'is_active' => true,
+        ]);
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'business_id' => $businessBUser->business_id,
+            'name' => 'Business B Product',
+        ]);
+    }
+
+    public function test_user_cannot_delete_another_business_product(): void
+    {
+        $businessAUser = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $businessBUser = User::factory()->create();
+
+        $categoryB = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        $product = Product::factory()->create([
+            'business_id' => $businessBUser->business_id,
+            'category_id' => $categoryB->id,
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->deleteJson("/api/products/{$product->id}");
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'deleted_at' => null,
+        ]);
+    }
+
+    public function test_product_creation_rejects_category_from_another_business(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $categoryB = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->postJson('/api/products', [
+            'category_id' => $categoryB->id,
+            'name' => 'Cross Business Product',
+            'slug' => 'cross-business-product',
+            'sku' => 'CROSS-001',
+            'price' => 10000,
+            'stock_quantity' => 10,
+            'low_stock_threshold' => 5,
+            'is_active' => true,
+        ]);
+
+        $response
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['category_id']);
+
+        $this->assertDatabaseMissing('products', [
+            'slug' => 'cross-business-product',
+        ]);
     }
 
     public function test_unauthenticated_user_cannot_access_products(): void

@@ -9,12 +9,22 @@ class UpdateProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user() !== null;
+        $product = $this->route('product');
+
+        abort_unless(
+            $this->user() !== null
+            && $product !== null
+            && $product->business_id === $this->user()->business_id,
+            404
+        );
+
+        return true;
     }
 
     public function rules(): array
     {
         $product = $this->route('product');
+        $businessId = $this->user()->business_id;
 
         $allowedFields = [
             'category_id',
@@ -31,7 +41,8 @@ class UpdateProductRequest extends FormRequest
             'category_id' => [
                 'required',
                 'integer',
-                'exists:categories,id',
+                Rule::exists('categories', 'id')
+                    ->where('business_id', $businessId),
             ],
 
             'name' => [
@@ -44,14 +55,18 @@ class UpdateProductRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('products', 'slug')->ignore($product),
+                Rule::unique('products', 'slug')
+                    ->where('business_id', $businessId)
+                    ->ignore($product),
             ],
 
             'sku' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('products', 'sku')->ignore($product),
+                Rule::unique('products', 'sku')
+                    ->where('business_id', $businessId)
+                    ->ignore($product),
             ],
 
             'description' => [

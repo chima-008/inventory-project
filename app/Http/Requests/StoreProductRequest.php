@@ -14,52 +14,83 @@ class StoreProductRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $businessId = $this->user()->business_id;
+
+        $allowedFields = [
+            'category_id',
+            'name',
+            'slug',
+            'sku',
+            'description',
+            'price',
+            'stock_quantity',
+            'low_stock_threshold',
+            'is_active',
+        ];
+
+        $rules = [
             'category_id' => [
                 'required',
                 'integer',
-                'exists:categories,id',
+                Rule::exists('categories', 'id')
+                    ->where('business_id', $businessId),
             ],
+
             'name' => [
                 'required',
                 'string',
                 'max:255',
             ],
+
             'slug' => [
                 'required',
                 'string',
                 'max:255',
-                'unique:products,slug',
+                Rule::unique('products', 'slug')
+                    ->where('business_id', $businessId),
             ],
+
             'sku' => [
                 'required',
                 'string',
                 'max:255',
-                'unique:products,sku',
+                Rule::unique('products', 'sku')
+                    ->where('business_id', $businessId),
             ],
+
             'description' => [
                 'nullable',
                 'string',
             ],
+
             'price' => [
                 'required',
                 'numeric',
                 'min:0',
             ],
+
             'stock_quantity' => [
                 'required',
                 'integer',
                 'min:0',
             ],
+
             'low_stock_threshold' => [
                 'required',
                 'integer',
                 'min:0',
             ],
+
             'is_active' => [
                 'required',
                 'boolean',
             ],
         ];
+
+        foreach (array_diff(array_keys($this->all()), $allowedFields) as $field) {
+            $rules[$field] = ['prohibited'];
+        }
+
+        return $rules;
     }
 }

@@ -16,8 +16,10 @@ class CategoryTest extends TestCase
     public function test_authenticated_user_can_list_categories(): void
     {
         $user = User::factory()->create();
+        $businessId = $user->business_id;
 
         Category::factory()->create([
+            'business_id' => $businessId,
             'name' => 'Electronics',
             'slug' => 'electronics',
         ]);
@@ -65,6 +67,7 @@ class CategoryTest extends TestCase
             ->assertJsonPath('data.slug', 'office-equipment');
 
         $this->assertDatabaseHas('categories', [
+            'business_id' => $user->business_id,
             'name' => 'Office Equipment',
             'slug' => 'office-equipment',
         ]);
@@ -97,11 +100,13 @@ class CategoryTest extends TestCase
         $user = User::factory()->create();
 
         $category = Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Furniture',
             'slug' => 'furniture',
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -121,6 +126,7 @@ class CategoryTest extends TestCase
         $user = User::factory()->create();
 
         $category = Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Old Category',
             'slug' => 'old-category',
         ]);
@@ -140,6 +146,7 @@ class CategoryTest extends TestCase
 
         $this->assertDatabaseHas('categories', [
             'id' => $category->id,
+            'business_id' => $user->business_id,
             'name' => 'Updated Category',
             'slug' => 'updated-category',
         ]);
@@ -150,6 +157,7 @@ class CategoryTest extends TestCase
         $user = User::factory()->create();
 
         $category = Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Old Category',
             'slug' => 'old-category',
         ]);
@@ -169,6 +177,7 @@ class CategoryTest extends TestCase
 
         $this->assertDatabaseHas('categories', [
             'id' => $category->id,
+            'business_id' => $user->business_id,
             'name' => 'Old Category',
             'slug' => 'old-category',
         ]);
@@ -180,7 +189,9 @@ class CategoryTest extends TestCase
             'role' => 'manager',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Sanctum::actingAs($user);
 
@@ -199,7 +210,9 @@ class CategoryTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Sanctum::actingAs($user);
 
@@ -222,9 +235,12 @@ class CategoryTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -244,6 +260,7 @@ class CategoryTest extends TestCase
         $user = User::factory()->create();
 
         Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Electronics',
             'slug' => 'electronics',
         ]);
@@ -266,6 +283,7 @@ class CategoryTest extends TestCase
         $user = User::factory()->create();
 
         Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Electronics',
             'slug' => 'electronics',
         ]);
@@ -281,6 +299,142 @@ class CategoryTest extends TestCase
         $response
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['slug']);
+    }
+
+    public function test_different_business_can_use_the_same_category_name_and_slug(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        Category::factory()->create([
+            'business_id' => $businessAUser->business_id,
+            'name' => 'Electronics',
+            'slug' => 'electronics',
+        ]);
+
+        Sanctum::actingAs($businessBUser);
+
+        $response = $this->postJson('/api/categories', [
+            'name' => 'Electronics',
+            'slug' => 'electronics',
+            'description' => 'Same category name in another business.',
+        ]);
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('data.name', 'Electronics')
+            ->assertJsonPath('data.slug', 'electronics');
+
+        $this->assertDatabaseHas('categories', [
+            'business_id' => $businessAUser->business_id,
+            'name' => 'Electronics',
+            'slug' => 'electronics',
+        ]);
+
+        $this->assertDatabaseHas('categories', [
+            'business_id' => $businessBUser->business_id,
+            'name' => 'Electronics',
+            'slug' => 'electronics',
+        ]);
+    }
+
+    public function test_user_cannot_list_categories_from_another_business(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        Category::factory()->create([
+            'business_id' => $businessAUser->business_id,
+            'name' => 'Business A Category',
+            'slug' => 'business-a-category',
+        ]);
+
+        Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+            'name' => 'Business B Category',
+            'slug' => 'business-b-category',
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->getJson('/api/categories');
+
+        $response
+            ->assertOk()
+            ->assertJsonFragment([
+                'name' => 'Business A Category',
+            ])
+            ->assertJsonMissing([
+                'name' => 'Business B Category',
+            ]);
+    }
+
+    public function test_user_cannot_view_another_business_category(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->getJson("/api/categories/{$category->id}");
+
+        $response->assertNotFound();
+    }
+
+    public function test_user_cannot_update_another_business_category(): void
+    {
+        $businessAUser = User::factory()->create();
+        $businessBUser = User::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+            'name' => 'Business B Category',
+            'slug' => 'business-b-category',
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->putJson("/api/categories/{$category->id}", [
+            'name' => 'Hacked Category',
+            'slug' => 'hacked-category',
+            'description' => 'This must not be allowed.',
+        ]);
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+            'business_id' => $businessBUser->business_id,
+            'name' => 'Business B Category',
+            'slug' => 'business-b-category',
+        ]);
+    }
+
+    public function test_user_cannot_delete_another_business_category(): void
+    {
+        $businessAUser = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $businessBUser = User::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $businessBUser->business_id,
+        ]);
+
+        Sanctum::actingAs($businessAUser);
+
+        $response = $this->deleteJson("/api/categories/{$category->id}");
+
+        $response->assertNotFound();
+
+        $this->assertDatabaseHas('categories', [
+            'id' => $category->id,
+        ]);
     }
 
     public function test_unauthenticated_user_cannot_access_categories(): void

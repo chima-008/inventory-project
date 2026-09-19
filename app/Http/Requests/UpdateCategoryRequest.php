@@ -15,6 +15,7 @@ class UpdateCategoryRequest extends FormRequest
     public function rules(): array
     {
         $category = $this->route('category');
+        $businessId = $this->user()->business_id;
 
         $allowedFields = [
             'name',
@@ -27,14 +28,20 @@ class UpdateCategoryRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('categories', 'name')->ignore($category),
+                Rule::unique('categories', 'name')
+                    ->where('business_id', $businessId)
+                    ->ignore($category),
             ],
+
             'slug' => [
                 'required',
                 'string',
                 'max:255',
-                Rule::unique('categories', 'slug')->ignore($category),
+                Rule::unique('categories', 'slug')
+                    ->where('business_id', $businessId)
+                    ->ignore($category),
             ],
+
             'description' => [
                 'nullable',
                 'string',

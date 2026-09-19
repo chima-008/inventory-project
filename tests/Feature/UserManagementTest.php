@@ -18,6 +18,7 @@ class UserManagementTest extends TestCase
         ]);
 
         $manager = User::factory()->create([
+            'business_id' => $admin->business_id,
             'name' => 'Test Manager',
             'email' => 'manager@example.com',
             'role' => 'manager',
@@ -74,6 +75,7 @@ class UserManagementTest extends TestCase
         ]);
 
         $manager = User::factory()->create([
+            'business_id' => $admin->business_id,
             'role' => 'manager',
         ]);
 
@@ -104,6 +106,7 @@ class UserManagementTest extends TestCase
         ]);
 
         $targetUser = User::factory()->create([
+            'business_id' => $admin->business_id,
             'role' => 'admin',
         ]);
 
@@ -161,6 +164,7 @@ class UserManagementTest extends TestCase
         ]);
 
         $targetUser = User::factory()->create([
+            'business_id' => $manager->business_id,
             'role' => 'manager',
         ]);
 
@@ -192,6 +196,7 @@ class UserManagementTest extends TestCase
         ]);
 
         $targetUser = User::factory()->create([
+            'business_id' => $admin->business_id,
             'role' => 'manager',
         ]);
 

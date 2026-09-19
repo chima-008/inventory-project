@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreCategoryRequest extends FormRequest
 {
@@ -13,6 +14,8 @@ class StoreCategoryRequest extends FormRequest
 
     public function rules(): array
     {
+        $businessId = $this->user()->business_id;
+
         $allowedFields = [
             'name',
             'slug',
@@ -24,14 +27,18 @@ class StoreCategoryRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                'unique:categories,name',
+                Rule::unique('categories', 'name')
+                    ->where('business_id', $businessId),
             ],
+
             'slug' => [
                 'required',
                 'string',
                 'max:255',
-                'unique:categories,slug',
+                Rule::unique('categories', 'slug')
+                    ->where('business_id', $businessId),
             ],
+
             'description' => [
                 'nullable',
                 'string',

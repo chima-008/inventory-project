@@ -31,9 +31,13 @@ class ApiSecurityTest extends TestCase
     public function test_duplicate_product_sku_is_rejected(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'sku' => 'ELEC-001',
             'slug' => 'existing-product',
@@ -60,9 +64,13 @@ class ApiSecurityTest extends TestCase
     public function test_duplicate_product_slug_is_rejected(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'sku' => 'ELEC-001',
             'slug' => 'existing-product',
@@ -89,7 +97,10 @@ class ApiSecurityTest extends TestCase
     public function test_negative_product_price_is_rejected(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Sanctum::actingAs($user);
 
@@ -127,9 +138,13 @@ class ApiSecurityTest extends TestCase
     public function test_soft_deleted_product_is_not_returned(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -150,6 +165,7 @@ class ApiSecurityTest extends TestCase
         ]);
 
         $targetUser = User::factory()->create([
+            'business_id' => $admin->business_id,
             'role' => 'manager',
             'password' => 'another-secret',
         ]);
@@ -170,9 +186,12 @@ class ApiSecurityTest extends TestCase
             'role' => 'manager',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $manager->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $manager->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -194,7 +213,9 @@ class ApiSecurityTest extends TestCase
             'role' => 'manager',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $manager->business_id,
+        ]);
 
         Sanctum::actingAs($manager);
 

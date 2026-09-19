@@ -5,19 +5,15 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
+        'business_id',
         'category_id',
         'name',
         'slug',
@@ -30,12 +26,14 @@ class Product extends Model
     ];
 
     protected $appends = [
-    'stock_status',
+        'stock_status',
     ];
 
-    /**
-     * Get the category that owns the product.
-     */
+    public function business(): BelongsTo
+    {
+        return $this->belongsTo(Business::class);
+    }
+
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);

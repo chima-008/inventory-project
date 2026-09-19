@@ -6,50 +6,61 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
-   public function summary(): JsonResponse
-{
-    $activeProducts = Product::query()
-        ->where('is_active', true);
+    public function summary(Request $request): JsonResponse
+    {
+        $businessId = $request->user()->business_id;
 
-    $allProducts = Product::query();
+        $activeProducts = Product::query()
+            ->where('business_id', $businessId)
+            ->where('is_active', true);
 
-    $totalProducts = (clone $activeProducts)->count();
+        $allProducts = Product::query()
+            ->where('business_id', $businessId);
 
-    $totalStockUnits = (clone $activeProducts)
-        ->sum('stock_quantity');
+        $totalProducts = (clone $activeProducts)->count();
 
-    $lowStockCount = (clone $allProducts)
-        ->where('stock_quantity', '>', 0)
-        ->whereColumn('stock_quantity', '<=', 'low_stock_threshold')
-        ->count();
+        $totalStockUnits = (clone $activeProducts)
+            ->sum('stock_quantity');
 
-    $outOfStockCount = (clone $allProducts)
-        ->where('stock_quantity', 0)
-        ->count();
+        $lowStockCount = (clone $allProducts)
+            ->where('stock_quantity', '>', 0)
+            ->whereColumn(
+                'stock_quantity',
+                '<=',
+                'low_stock_threshold'
+            )
+            ->count();
 
-    $inventoryValue = (clone $activeProducts)
-        ->selectRaw(
-            'COALESCE(SUM(stock_quantity * price), 0) as value'
-        )
-        ->value('value');
+        $outOfStockCount = (clone $allProducts)
+            ->where('stock_quantity', 0)
+            ->count();
 
-    return response()->json([
-        'data' => [
-            'total_products' => $totalProducts,
-            'total_categories' => Category::count(),
-            'total_stock_units' => $totalStockUnits,
-            'low_stock_count' => $lowStockCount,
-            'out_of_stock_count' => $outOfStockCount,
-            'inventory_value' => number_format(
-                (float) $inventoryValue,
-                2,
-                '.',
-                ''
-            ),
-        ],
-    ]);
-}
+        $inventoryValue = (clone $activeProducts)
+            ->selectRaw(
+                'COALESCE(SUM(stock_quantity * price), 0) as value'
+            )
+            ->value('value');
+
+        return response()->json([
+            'data' => [
+                'total_products' => $totalProducts,
+                'total_categories' => Category::query()
+                    ->where('business_id', $businessId)
+                    ->count(),
+                'total_stock_units' => $totalStockUnits,
+                'low_stock_count' => $lowStockCount,
+                'out_of_stock_count' => $outOfStockCount,
+                'inventory_value' => number_format(
+                    (float) $inventoryValue,
+                    2,
+                    '.',
+                    ''
+                ),
+            ],
+        ]);
+    }
 }

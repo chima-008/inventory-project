@@ -17,9 +17,13 @@ class StockMovementTest extends TestCase
     public function test_authenticated_user_can_list_product_stock_movements(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -62,7 +66,6 @@ class StockMovementTest extends TestCase
                 'quantity' => 10,
                 'reason' => 'Initial stock',
             ])
-
             ->assertJsonPath('data.0.product.id', $product->id)
             ->assertJsonPath('data.0.product.name', $product->name)
             ->assertJsonPath('data.0.user.id', $user->id)
@@ -74,9 +77,13 @@ class StockMovementTest extends TestCase
     public function test_authenticated_user_can_record_stock_in(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -122,9 +129,13 @@ class StockMovementTest extends TestCase
     public function test_stock_movement_creation_rejects_unexpected_fields(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -160,9 +171,13 @@ class StockMovementTest extends TestCase
     public function test_authenticated_user_can_record_stock_out(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 50,
         ]);
@@ -204,9 +219,13 @@ class StockMovementTest extends TestCase
     public function test_stock_cannot_go_below_zero(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 10,
         ]);
@@ -243,9 +262,13 @@ class StockMovementTest extends TestCase
     public function test_invalid_movement_type_is_rejected(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -274,9 +297,13 @@ class StockMovementTest extends TestCase
     public function test_negative_quantity_is_rejected(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -305,9 +332,13 @@ class StockMovementTest extends TestCase
     public function test_zero_quantity_is_rejected(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -338,6 +369,7 @@ class StockMovementTest extends TestCase
         $category = Category::factory()->create();
 
         $product = Product::factory()->create([
+            'business_id' => $category->business_id,
             'category_id' => $category->id,
         ]);
 
@@ -358,9 +390,12 @@ class StockMovementTest extends TestCase
             'role' => 'manager',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $manager->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $manager->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);
@@ -392,9 +427,12 @@ class StockMovementTest extends TestCase
             'role' => 'admin',
         ]);
 
-        $category = Category::factory()->create();
+        $category = Category::factory()->create([
+            'business_id' => $admin->business_id,
+        ]);
 
         $product = Product::factory()->create([
+            'business_id' => $admin->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 20,
         ]);

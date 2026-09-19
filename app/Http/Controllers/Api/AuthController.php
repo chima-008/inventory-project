@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
-use App\Models\User;
-use Illuminate\Http\JsonResponse;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
-use Illuminate\Support\Facades\Hash;
 use App\Http\Resources\UserResource;
-use App\Enums\UserRole;
+use App\Models\Business;
+use App\Models\User;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -17,16 +20,33 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-       $user = User::create([
-        ...$validated,
-        'role' => UserRole::MANAGER->value,
-    ]);
+        $result = DB::transaction(function () use ($validated) {
+            $business = Business::create([
+                'name' => $validated['business_name'],
+            ]);
 
-        $token = $user->createToken('inventory-api')->plainTextToken;
+            $user = User::create([
+                'business_id' => $business->id,
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => $validated['password'],
+                'role' => UserRole::ADMIN->value,
+            ]);
 
-       return response()->json([
+            return [
+                'business' => $business,
+                'user' => $user,
+            ];
+        });
+
+        $token = $result['user']
+            ->createToken('inventory-api')
+            ->plainTextToken;
+
+        return response()->json([
             'message' => 'Registration successful.',
-            'user' => UserResource::make($user),
+            'business' => $result['business'],
+            'user' => UserResource::make($result['user']),
             'token' => $token,
         ], 201);
     }
@@ -34,6 +54,7 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
+
         $user = User::where('email', $validated['email'])->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {

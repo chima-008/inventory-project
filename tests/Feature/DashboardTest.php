@@ -18,16 +18,19 @@ class DashboardTest extends TestCase
         $user = User::factory()->create();
 
         $electronics = Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Electronics',
             'slug' => 'electronics',
         ]);
 
         $furniture = Category::factory()->create([
+            'business_id' => $user->business_id,
             'name' => 'Furniture',
             'slug' => 'furniture',
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $electronics->id,
             'name' => 'Keyboard',
             'price' => 10000,
@@ -37,6 +40,7 @@ class DashboardTest extends TestCase
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $electronics->id,
             'name' => 'Mouse',
             'price' => 5000,
@@ -46,6 +50,7 @@ class DashboardTest extends TestCase
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $furniture->id,
             'name' => 'Office Chair',
             'price' => 50000,
@@ -82,9 +87,13 @@ class DashboardTest extends TestCase
     public function test_inactive_products_are_excluded_from_dashboard_totals(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'name' => 'Active Product',
             'price' => 10000,
@@ -94,6 +103,7 @@ class DashboardTest extends TestCase
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'name' => 'Inactive Product',
             'price' => 50000,
@@ -118,9 +128,13 @@ class DashboardTest extends TestCase
     public function test_dashboard_counts_low_stock_count_correctly(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 5,
             'low_stock_threshold' => 5,
@@ -128,6 +142,7 @@ class DashboardTest extends TestCase
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 4,
             'low_stock_threshold' => 5,
@@ -135,6 +150,7 @@ class DashboardTest extends TestCase
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 6,
             'low_stock_threshold' => 5,
@@ -154,21 +170,27 @@ class DashboardTest extends TestCase
     public function test_dashboard_counts_out_of_stock_count_correctly(): void
     {
         $user = User::factory()->create();
-        $category = Category::factory()->create();
+
+        $category = Category::factory()->create([
+            'business_id' => $user->business_id,
+        ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 0,
             'is_active' => true,
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 0,
             'is_active' => true,
         ]);
 
         Product::factory()->create([
+            'business_id' => $user->business_id,
             'category_id' => $category->id,
             'stock_quantity' => 5,
             'low_stock_threshold' => 5,
