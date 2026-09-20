@@ -25,11 +25,16 @@ class AuthTest extends TestCase
 
         $response
             ->assertCreated()
-            ->assertJsonPath('message', 'Registration successful.')
+            ->assertJsonPath(
+                'message',
+                'Registration successful. Please verify your email address before logging in.'
+            )
             ->assertJsonPath('business.name', 'Owner Business')
             ->assertJsonPath('user.name', 'Business Owner')
             ->assertJsonPath('user.email', 'owner@example.com')
-            ->assertJsonPath('user.role', 'admin');
+            ->assertJsonPath('user.role', 'admin')
+            ->assertJsonPath('email_verification_required', true)
+            ->assertJsonMissingPath('token');
 
         $this->assertDatabaseHas('businesses', [
             'name' => 'Owner Business',
@@ -41,6 +46,7 @@ class AuthTest extends TestCase
             'email' => 'owner@example.com',
             'business_id' => $business->id,
             'role' => UserRole::ADMIN->value,
+            'email_verified_at' => null,
         ]);
     }
 
@@ -69,7 +75,8 @@ class AuthTest extends TestCase
             ->assertJsonPath('business.name', 'Second Business')
             ->assertJsonPath('user.name', 'Second Owner')
             ->assertJsonPath('user.email', 'second@example.com')
-            ->assertJsonPath('user.role', 'admin');
+            ->assertJsonPath('user.role', 'admin')
+            ->assertJsonPath('email_verification_required', true);
 
         $this->assertDatabaseHas('businesses', [
             'name' => 'First Business',
@@ -117,6 +124,29 @@ class AuthTest extends TestCase
         $this->assertNotEmpty($response->json('token'));
     }
 
+    public function test_unverified_user_cannot_login(): void
+    {
+        User::factory()->create([
+            'email' => 'unverified@example.com',
+            'password' => 'password123',
+            'email_verified_at' => null,
+        ]);
+
+        $response = $this->postJson('/api/login', [
+            'email' => 'unverified@example.com',
+            'password' => 'password123',
+        ]);
+
+        $response
+            ->assertForbidden()
+            ->assertJsonPath(
+                'message',
+                'Please verify your email address before logging in.'
+            )
+            ->assertJsonPath('email_verification_required', true)
+            ->assertJsonMissingPath('token');
+    }
+
     public function test_login_fails_with_invalid_credentials(): void
     {
         User::factory()->create([
@@ -135,6 +165,39 @@ class AuthTest extends TestCase
                 'message',
                 'The provided credentials are incorrect.'
             );
+    }
+
+    public function test_unverified_user_cannot_access_protected_api_routes(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => null,
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/user');
+
+        $response
+            ->assertForbidden()
+            ->assertJsonPath(
+                'message',
+                'Your email address is not verified.'
+            );
+    }
+
+    public function test_verified_user_can_access_protected_api_routes(): void
+    {
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        Sanctum::actingAs($user);
+
+        $response = $this->getJson('/api/user');
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('data.email', $user->email);
     }
 
     public function test_registration_is_rate_limited(): void
@@ -168,6 +231,7 @@ class AuthTest extends TestCase
             'name' => 'Authenticated User',
             'email' => 'authenticated@example.com',
             'role' => UserRole::ADMIN->value,
+            'email_verified_at' => now(),
         ]);
 
         Sanctum::actingAs($user);

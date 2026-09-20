@@ -33,21 +33,19 @@ class AuthController extends Controller
                 'role' => UserRole::ADMIN->value,
             ]);
 
+            $user->sendEmailVerificationNotification();
+
             return [
                 'business' => $business,
                 'user' => $user,
             ];
         });
 
-        $token = $result['user']
-            ->createToken('inventory-api')
-            ->plainTextToken;
-
         return response()->json([
-            'message' => 'Registration successful.',
+            'message' => 'Registration successful. Please verify your email address before logging in.',
             'business' => $result['business'],
             'user' => UserResource::make($result['user']),
-            'token' => $token,
+            'email_verification_required' => true,
         ], 201);
     }
 
@@ -63,12 +61,36 @@ class AuthController extends Controller
             ], 401);
         }
 
+        if (! $user->hasVerifiedEmail()) {
+            return response()->json([
+                'message' => 'Please verify your email address before logging in.',
+                'email_verification_required' => true,
+            ], 403);
+        }
+
         $token = $user->createToken('inventory-api')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
             'user' => UserResource::make($user),
             'token' => $token,
+        ]);
+    }
+
+    public function resendVerification(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if ($user && ! $user->hasVerifiedEmail()) {
+            $user->sendEmailVerificationNotification();
+        }
+
+        return response()->json([
+            'message' => 'If an account with that email requires verification, a new verification email has been sent.',
         ]);
     }
 
