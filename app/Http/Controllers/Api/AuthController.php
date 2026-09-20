@@ -39,7 +39,7 @@ class AuthController extends Controller
             ];
         });
 
-        $result['user']->sendEmailVerificationNotification();
+        // $result['user']->sendEmailVerificationNotification();
 
         return response()->json([
             'message' => 'Registration successful. Please verify your email address before logging in.',
