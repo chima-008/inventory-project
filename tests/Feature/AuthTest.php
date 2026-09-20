@@ -8,10 +8,22 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use App\Services\BrevoMailService;
 
 class AuthTest extends TestCase
 {
     use RefreshDatabase;
+
+      protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->mock(BrevoMailService::class, function ($mock) {
+            $mock->shouldReceive('sendVerificationEmail')
+                ->andReturnNull();
+        });
+    }
+
 
     public function test_business_owner_can_register_and_become_admin(): void
     {
@@ -244,4 +256,5 @@ class AuthTest extends TestCase
             ->assertJsonPath('data.email', 'authenticated@example.com')
             ->assertJsonPath('data.role', 'admin');
     }
+
 }

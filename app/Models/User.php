@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use App\Notifications\VerifyEmailNotification;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -52,7 +51,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     public function sendEmailVerificationNotification(): void
-    {
-        $this->notify(new VerifyEmailNotification());
-    }
+{
+    $verificationUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+        'verification.verify',
+        now()->addMinutes(60),
+        [
+            'id' => $this->getKey(),
+            'hash' => sha1($this->getEmailForVerification()),
+        ]
+    );
+
+    app(\App\Services\BrevoMailService::class)->sendVerificationEmail(
+        $this->email,
+        $this->name,
+        $verificationUrl
+    );
+}
 }
