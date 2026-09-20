@@ -33,13 +33,13 @@ class AuthController extends Controller
                 'role' => UserRole::ADMIN->value,
             ]);
 
-            $user->sendEmailVerificationNotification();
-
             return [
                 'business' => $business,
                 'user' => $user,
             ];
         });
+
+        $result['user']->sendEmailVerificationNotification();
 
         return response()->json([
             'message' => 'Registration successful. Please verify your email address before logging in.',
