@@ -3,9 +3,12 @@
 namespace App\Models;
 
 use App\Enums\UserRole;
+use App\Services\BrevoMailService;
 use Database\Factories\UserFactory;
 use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\CanResetPassword;
+use Illuminate\Auth\Passwords\CanResetPassword as CanResetPasswordTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,10 +16,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
 {
-    /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, MustVerifyEmailTrait;
+    use HasApiTokens,
+        HasFactory,
+        Notifiable,
+        MustVerifyEmailTrait,
+        CanResetPasswordTrait;
 
     protected $fillable = [
         'business_id',
@@ -51,20 +57,40 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     public function sendEmailVerificationNotification(): void
-{
-    $verificationUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
-        'verification.verify',
-        now()->addMinutes(60),
-        [
-            'id' => $this->getKey(),
-            'hash' => sha1($this->getEmailForVerification()),
-        ]
-    );
+    {
+        $verificationUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            [
+                'id' => $this->getKey(),
+                'hash' => sha1($this->getEmailForVerification()),
+            ]
+        );
 
-    app(\App\Services\BrevoMailService::class)->sendVerificationEmail(
-        $this->email,
-        $this->name,
-        $verificationUrl
-    );
-}
+        app(BrevoMailService::class)->sendVerificationEmail(
+            $this->email,
+            $this->name,
+            $verificationUrl
+        );
+    }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $frontendUrl = rtrim(
+            env('FRONTEND_URL', 'http://localhost:3000'),
+            '/'
+        );
+
+        $resetUrl = $frontendUrl
+            . '/reset-password?token='
+            . urlencode($token)
+            . '&email='
+            . urlencode($this->email);
+
+        app(BrevoMailService::class)->sendPasswordResetEmail(
+            $this->email,
+            $this->name,
+            $resetUrl
+        );
+    }
 }

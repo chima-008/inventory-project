@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Api\PasswordResetController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -29,6 +30,16 @@ Route::post('/email/verification-notification', [
     AuthController::class,
     'resendVerification',
 ])->middleware('throttle:verification');
+
+Route::post(
+    '/forgot-password',
+    [PasswordResetController::class, 'forgotPassword']
+)->middleware('throttle:5,1');
+
+Route::post(
+    '/reset-password',
+    [PasswordResetController::class, 'resetPassword']
+)->middleware('throttle:10,1');
 
 // Signed email verification link
 Route::get('/email/verify/{id}/{hash}', [
