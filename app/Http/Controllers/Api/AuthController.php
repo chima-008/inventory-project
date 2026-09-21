@@ -20,6 +20,30 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
+        $existingUser = User::where(
+            'email',
+            $validated['email']
+        )->first();
+
+        if ($existingUser) {
+            if (! $existingUser->hasVerifiedEmail()) {
+                return response()->json([
+                    'message' => 'An account with this email already exists but has not been verified.',
+                    'email_verification_required' => true,
+                    'email' => $existingUser->email,
+                ], 409);
+            }
+
+            return response()->json([
+                'message' => 'The email has already been taken.',
+                'errors' => [
+                    'email' => [
+                        'The email has already been taken.',
+                    ],
+                ],
+            ], 422);
+        }
+
         $result = DB::transaction(function () use ($validated) {
             $business = Business::create([
                 'name' => $validated['business_name'],
@@ -53,9 +77,18 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where(
+            'email',
+            $validated['email']
+        )->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+        if (
+            ! $user ||
+            ! Hash::check(
+                $validated['password'],
+                $user->password
+            )
+        ) {
             return response()->json([
                 'message' => 'The provided credentials are incorrect.',
             ], 401);
@@ -65,10 +98,13 @@ class AuthController extends Controller
             return response()->json([
                 'message' => 'Please verify your email address before logging in.',
                 'email_verification_required' => true,
+                'email' => $user->email,
             ], 403);
         }
 
-        $token = $user->createToken('inventory-api')->plainTextToken;
+        $token = $user->createToken(
+            'inventory-api'
+        )->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful.',
@@ -77,13 +113,17 @@ class AuthController extends Controller
         ]);
     }
 
-    public function resendVerification(Request $request): JsonResponse
-    {
+    public function resendVerification(
+        Request $request
+    ): JsonResponse {
         $validated = $request->validate([
             'email' => ['required', 'email'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where(
+            'email',
+            $validated['email']
+        )->first();
 
         if ($user && ! $user->hasVerifiedEmail()) {
             $user->sendEmailVerificationNotification();
