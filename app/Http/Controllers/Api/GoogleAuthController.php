@@ -30,13 +30,18 @@ class GoogleAuthController extends Controller
             $googleUser = Socialite::driver('google')
                 ->stateless()
                 ->user();
-        } catch (Throwable $exception) {
-            report($exception);
+       } catch (Throwable $exception) {
+    logger()->error('Google account creation failed', [
+        'message' => $exception->getMessage(),
+        'exception' => get_class($exception),
+    ]);
 
-            return redirect()->away(
-                $this->frontendUrl('/login?error=google_auth_failed')
-            );
-        }
+    report($exception);
+
+    return redirect()->away(
+        $this->frontendUrl('/login?error=google_account_failed')
+    );
+}
 
         $rawGoogleUser = $googleUser->getRaw();
 
