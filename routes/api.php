@@ -132,6 +132,11 @@ Route::get('/dashboard/summary', [
     'summary',
 ])->middleware(['auth:sanctum', 'verified']);
 
+Route::patch('/business', [
+    UserController::class,
+    'updateBusiness',
+])->middleware(['auth:sanctum', 'verified', 'admin']);
+
 // User management routes
 Route::get('/users', [UserController::class, 'index'])
     ->middleware(['auth:sanctum', 'verified', 'admin']);
