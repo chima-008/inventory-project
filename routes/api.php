@@ -69,18 +69,8 @@ Route::post('/logout', [AuthController::class, 'logout'])
     ->middleware(['auth:sanctum', 'verified']);
 
 Route::get('/user', function (Request $request) {
-    $user = $request->user();
-
-    return response()->json([
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email,
-        'business_id' => $user->business_id,
-        'role' => $user->role,
-        'email_verified_at' => $user->email_verified_at,
-        'has_verified_email' => $user->hasVerifiedEmail(),
-    ]);
-})->middleware(['auth:sanctum']);
+    return \App\Http\Resources\UserResource::make($request->user());
+})->middleware(['auth:sanctum', 'verified']);
 
 // Category routes
 Route::get('/categories', [CategoryController::class, 'index'])

@@ -100,6 +100,15 @@ class GoogleAuthController extends Controller
             }
         }
 
+                /*
+        |--------------------------------------------------------------------------
+        | Google has already verified this email
+        |--------------------------------------------------------------------------
+        */
+
+        if (! $user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
         /*
         |--------------------------------------------------------------------------
         | Create a short-lived, one-time OAuth handoff code
