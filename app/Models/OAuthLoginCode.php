@@ -11,6 +11,8 @@ class OAuthLoginCode extends Model
 
     protected $fillable = [
         'user_id',
+        'google_email',
+        'google_name',
         'code_hash',
         'expires_at',
         'used_at',

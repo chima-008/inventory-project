@@ -30,18 +30,18 @@ class GoogleAuthController extends Controller
             $googleUser = Socialite::driver('google')
                 ->stateless()
                 ->user();
-       } catch (Throwable $exception) {
-    logger()->error('Google account creation failed', [
-        'message' => $exception->getMessage(),
-        'exception' => get_class($exception),
-    ]);
+        } catch (Throwable $exception) {
+            logger()->error('Google authentication failed', [
+                'message' => $exception->getMessage(),
+                'exception' => get_class($exception),
+            ]);
 
-    report($exception);
+            report($exception);
 
-    return redirect()->away(
-        $this->frontendUrl('/login?error=google_account_failed')
-    );
-}
+            return redirect()->away(
+                $this->frontendUrl('/login?error=google_account_failed')
+            );
+        }
 
         $rawGoogleUser = $googleUser->getRaw();
 
@@ -66,62 +66,54 @@ class GoogleAuthController extends Controller
 
         $email = strtolower(trim($email));
 
-        $user = User::where('email', $email)->first();
-
-        if (! $user) {
-            try {
-                $user = DB::transaction(function () use (
-                    $googleUser,
-                    $email
-                ) {
-                    $business = Business::create([
-                        'name' => $this->businessName(
-                            $googleUser->getName(),
-                            $email
-                        ),
-                    ]);
-
-                    return User::create([
-                        'business_id' => $business->id,
-                        'name' => $googleUser->getName()
-                            ?: $this->nameFromEmail($email),
-                        'email' => $email,
-                        'password' => null,
-                        'role' => UserRole::ADMIN->value,
-                        'email_verified_at' => now(),
-                    ]);
-                });
-            } catch (Throwable $exception) {
-                report($exception);
-
-                return redirect()->away(
-                    $this->frontendUrl('/login?error=google_account_failed')
-                );
-            }
-        }
-
-                /*
-        |--------------------------------------------------------------------------
-        | Google has already verified this email
-        |--------------------------------------------------------------------------
-        */
-
-        if (! $user->hasVerifiedEmail()) {
-            $user->markEmailAsVerified();
-        }
         /*
         |--------------------------------------------------------------------------
-        | Create a short-lived, one-time OAuth handoff code
+        | Existing account
         |--------------------------------------------------------------------------
+        |
+        | If the Google email already belongs to an account, we keep the
+        | existing login flow. No business onboarding is required.
+        |
         */
+
+        $user = User::where('email', $email)->first();
 
         $rawCode = Str::random(64);
 
-        OAuthLoginCode::create([
-            'user_id' => $user->id,
-            'code_hash' => hash('sha256', $rawCode),
-            'expires_at' => now()->addMinutes(2),
-        ]);
+        if ($user) {
+            if (! $user->hasVerifiedEmail()) {
+                $user->markEmailAsVerified();
+            }
+
+            OAuthLoginCode::create([
+                'user_id' => $user->id,
+                'google_email' => null,
+                'google_name' => null,
+                'code_hash' => hash('sha256', $rawCode),
+                'expires_at' => now()->addMinutes(2),
+            ]);
+        } else {
+            /*
+            |--------------------------------------------------------------------------
+            | New Google account
+            |--------------------------------------------------------------------------
+            |
+            | Do NOT create a Business or User yet.
+            |
+            | The short-lived OAuth code temporarily stores the verified
+            | Google identity. The frontend will ask for the business name,
+            | then the exchange endpoint will create both records atomically.
+            |
+            */
+
+            OAuthLoginCode::create([
+                'user_id' => null,
+                'google_email' => $email,
+                'google_name' => $googleUser->getName(),
+                'code_hash' => hash('sha256', $rawCode),
+                'expires_at' => now()->addMinutes(2),
+            ]);
+        }
 
         return redirect()->away(
             $this->frontendUrl(
@@ -130,75 +122,210 @@ class GoogleAuthController extends Controller
         );
     }
 
-   public function exchangeCode(Request $request): JsonResponse
-{
-    $validated = $request->validate([
-        'code' => [
-            'required',
-            'string',
-            'size:64',
-        ],
-    ]);
+    public function exchangeCode(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'code' => [
+                'required',
+                'string',
+                'size:64',
+            ],
+            'business_name' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+        ]);
 
-    $codeHash = hash(
-        'sha256',
-        $validated['code']
-    );
+        $codeHash = hash(
+            'sha256',
+            $validated['code']
+        );
 
-    $result = DB::transaction(function () use ($codeHash) {
-        $oauthCode = OAuthLoginCode::with('user')
-            ->where('code_hash', $codeHash)
-            ->whereNull('used_at')
-            ->lockForUpdate()
-            ->first();
+        $result = DB::transaction(function () use (
+            $codeHash,
+            $validated
+        ) {
+            $oauthCode = OAuthLoginCode::where(
+                'code_hash',
+                $codeHash
+            )
+                ->whereNull('used_at')
+                ->lockForUpdate()
+                ->first();
 
-        if (! $oauthCode) {
-            return [
-                'status' => 'invalid',
-            ];
-        }
+            if (! $oauthCode) {
+                return [
+                    'status' => 'invalid',
+                ];
+            }
 
-        if ($oauthCode->expires_at->isPast()) {
+            if ($oauthCode->expires_at->isPast()) {
+                $oauthCode->update([
+                    'used_at' => now(),
+                ]);
+
+                return [
+                    'status' => 'expired',
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Existing user
+            |--------------------------------------------------------------------------
+            */
+
+            if ($oauthCode->user_id) {
+                $user = $oauthCode->user;
+
+                if (! $user) {
+                    return [
+                        'status' => 'invalid',
+                    ];
+                }
+
+                $oauthCode->update([
+                    'used_at' => now(),
+                ]);
+
+                $token = $user
+                    ->createToken('inventory-api')
+                    ->plainTextToken;
+
+                return [
+                    'status' => 'success',
+                    'token' => $token,
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | New Google user
+            |--------------------------------------------------------------------------
+            */
+
+            if (! $oauthCode->google_email) {
+                return [
+                    'status' => 'invalid',
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | First exchange:
+            | ask frontend for business name without consuming the code.
+            |--------------------------------------------------------------------------
+            */
+
+            $businessName = trim(
+                (string) ($validated['business_name'] ?? '')
+            );
+
+            if ($businessName === '') {
+                return [
+                    'status' => 'requires_business_name',
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Protect against the email being registered between the Google
+            | callback and this exchange.
+            |--------------------------------------------------------------------------
+            */
+
+            $existingUser = User::where(
+                'email',
+                $oauthCode->google_email
+            )
+                ->lockForUpdate()
+                ->first();
+
+            if ($existingUser) {
+                if (! $existingUser->hasVerifiedEmail()) {
+                    $existingUser->markEmailAsVerified();
+                }
+
+                $oauthCode->user_id = $existingUser->id;
+                $oauthCode->google_email = null;
+                $oauthCode->google_name = null;
+                $oauthCode->used_at = now();
+                $oauthCode->save();
+
+                $token = $existingUser
+                    ->createToken('inventory-api')
+                    ->plainTextToken;
+
+                return [
+                    'status' => 'success',
+                    'token' => $token,
+                ];
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create business + user atomically
+            |--------------------------------------------------------------------------
+            */
+
+            $business = Business::create([
+                'name' => $businessName,
+            ]);
+
+            $user = User::create([
+                'business_id' => $business->id,
+                'name' => $oauthCode->google_name
+                    ?: $this->nameFromEmail(
+                        $oauthCode->google_email
+                    ),
+                'email' => $oauthCode->google_email,
+                'password' => null,
+                'role' => UserRole::ADMIN->value,
+                'email_verified_at' => now(),
+            ]);
+
             $oauthCode->update([
+                'user_id' => $user->id,
+                'google_email' => null,
+                'google_name' => null,
                 'used_at' => now(),
             ]);
 
+            $token = $user
+                ->createToken('inventory-api')
+                ->plainTextToken;
+
             return [
-                'status' => 'expired',
+                'status' => 'success',
+                'token' => $token,
             ];
+        });
+
+        if ($result['status'] === 'expired') {
+            return response()->json([
+                'message' => 'This authentication code has expired. Please try again.',
+            ], 422);
         }
 
-        $oauthCode->update([
-            'used_at' => now(),
+        if ($result['status'] === 'invalid') {
+            return response()->json([
+                'message' => 'This authentication code is invalid or has already been used.',
+            ], 422);
+        }
+
+        if ($result['status'] === 'requires_business_name') {
+            return response()->json([
+                'message' => 'Please provide your business name to continue.',
+                'requires_business_name' => true,
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Google authentication successful.',
+            'token' => $result['token'],
         ]);
-
-        $token = $oauthCode->user
-            ->createToken('inventory-api')
-            ->plainTextToken;
-
-        return [
-            'status' => 'success',
-            'token' => $token,
-        ];
-    });
-
-    if ($result['status'] === 'expired') {
-        return response()->json([
-            'message' => 'This authentication code has expired. Please try again.',
-        ], 422);
     }
-
-    if ($result['status'] === 'invalid') {
-        return response()->json([
-            'message' => 'This authentication code is invalid or has already been used.',
-        ], 422);
-    }
-
-    return response()->json([
-        'message' => 'Google authentication successful.',
-        'token' => $result['token'],
-    ]);
-}
 
     private function frontendUrl(string $path): string
     {
@@ -206,19 +333,6 @@ class GoogleAuthController extends Controller
             env('FRONTEND_URL', 'http://localhost:3000'),
             '/'
         ) . $path;
-    }
-
-    private function businessName(
-        ?string $googleName,
-        string $email
-    ): string {
-        $name = trim((string) $googleName);
-
-        if ($name !== '') {
-            return $name . "'s Business";
-        }
-
-        return $this->nameFromEmail($email) . "'s Business";
     }
 
     private function nameFromEmail(string $email): string
