@@ -145,3 +145,14 @@ Route::patch('/users/{user}/role', [
     UserController::class,
     'updateRole',
 ])->middleware(['auth:sanctum', 'verified', 'admin']);
+
+// User and business settings routes
+Route::patch('/user/profile', [
+    UserController::class,
+    'updateProfile',
+])->middleware(['auth:sanctum', 'verified']);
+
+Route::patch('/business', [
+    UserController::class,
+    'updateBusiness',
+])->middleware(['auth:sanctum', 'verified', 'admin']);
