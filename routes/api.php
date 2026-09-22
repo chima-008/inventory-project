@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Api\PasswordResetController;
+use App\Http\Controllers\Api\GoogleAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -40,6 +41,21 @@ Route::post(
     '/reset-password',
     [PasswordResetController::class, 'resetPassword']
 )->middleware('throttle:10,1');
+
+Route::get('/auth/google', [
+    GoogleAuthController::class,
+    'redirect',
+]);
+
+Route::get('/auth/google/callback', [
+    GoogleAuthController::class,
+    'callback',
+]);
+
+Route::post('/auth/google/exchange', [
+    GoogleAuthController::class,
+    'exchangeCode',
+])->middleware('throttle:10,1');
 
 // Signed email verification link
 Route::get('/email/verify/{id}/{hash}', [
