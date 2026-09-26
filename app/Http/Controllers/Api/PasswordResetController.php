@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 class PasswordResetController extends Controller
 {
-    public function forgotPassword(
+    public function sendResetLink(
         ForgotPasswordRequest $request
     ): JsonResponse {
         $status = Password::sendResetLink(
@@ -22,22 +22,25 @@ class PasswordResetController extends Controller
 
         if ($status === Password::RESET_THROTTLED) {
             return response()->json([
-                'message' => 'Please wait before requesting another password reset email.',
+                'message' =>
+                    'Please wait before requesting another password reset email.',
             ], 429);
         }
 
         if ($status !== Password::RESET_LINK_SENT) {
             return response()->json([
-                'message' => 'We could not process that password reset request.',
+                'message' =>
+                    'We could not process that password reset request.',
             ], 422);
         }
 
         return response()->json([
-            'message' => 'If an account exists with that email address, a password reset link has been sent.',
+            'message' =>
+                'If an account exists with that email address, a password reset link has been sent.',
         ]);
     }
 
-    public function resetPassword(
+    public function reset(
         ResetPasswordRequest $request
     ): JsonResponse {
         $status = Password::reset(
@@ -61,18 +64,21 @@ class PasswordResetController extends Controller
 
         if ($status === Password::INVALID_TOKEN) {
             return response()->json([
-                'message' => 'This password reset link is invalid or has expired.',
+                'message' =>
+                    'This password reset link is invalid or has expired.',
             ], 422);
         }
 
         if ($status === Password::INVALID_USER) {
             return response()->json([
-                'message' => 'We could not find an account with that email address.',
+                'message' =>
+                    'We could not find an account with that email address.',
             ], 422);
         }
 
         return response()->json([
-            'message' => 'Your password has been reset successfully. You can now sign in with your new password.',
+            'message' =>
+                'Your password has been reset successfully. You can now sign in with your new password.',
         ]);
     }
 }

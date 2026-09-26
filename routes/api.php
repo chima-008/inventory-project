@@ -18,7 +18,6 @@ use Illuminate\Support\Facades\Route;
 | Health Check
 |--------------------------------------------------------------------------
 */
-
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
@@ -31,7 +30,6 @@ Route::get('/health', function () {
 | Authentication
 |--------------------------------------------------------------------------
 */
-
 Route::post('/register', [
     AuthController::class,
     'register',
@@ -57,7 +55,6 @@ Route::post('/reset-password', [
 | Email Verification
 |--------------------------------------------------------------------------
 */
-
 Route::get('/email/verify/{id}/{hash}', [
     EmailVerificationController::class,
     'verify',
@@ -79,7 +76,6 @@ Route::post('/email/verification-notification', [
 | Google OAuth
 |--------------------------------------------------------------------------
 */
-
 Route::get('/auth/google', [
     GoogleAuthController::class,
     'redirect',
@@ -99,17 +95,10 @@ Route::post('/auth/google/exchange', [
 | Authenticated User
 |--------------------------------------------------------------------------
 */
-
 Route::middleware([
     'auth:sanctum',
     'verified',
 ])->group(function () {
-    /*
-    |--------------------------------------------------------------------------
-    | Current User
-    |--------------------------------------------------------------------------
-    */
-
     Route::get('/user', function (Request $request) {
         return response()->json([
             'data' => new \App\Http\Resources\UserResource(
@@ -118,22 +107,10 @@ Route::middleware([
         ]);
     });
 
-    /*
-    |--------------------------------------------------------------------------
-    | Profile
-    |--------------------------------------------------------------------------
-    */
-
     Route::patch('/user/profile', [
         UserController::class,
         'updateProfile',
     ]);
-
-    /*
-    |--------------------------------------------------------------------------
-    | Dashboard
-    |--------------------------------------------------------------------------
-    */
 
     Route::get('/dashboard/summary', [
         DashboardController::class,
@@ -145,22 +122,70 @@ Route::middleware([
     | Categories
     |--------------------------------------------------------------------------
     */
+    Route::get('/categories', [
+        CategoryController::class,
+        'index',
+    ]);
 
-    Route::apiResource('categories', CategoryController::class);
+    Route::post('/categories', [
+        CategoryController::class,
+        'store',
+    ]);
+
+    Route::get('/categories/{category}', [
+        CategoryController::class,
+        'show',
+    ]);
+
+    Route::put('/categories/{category}', [
+        CategoryController::class,
+        'update',
+    ]);
+
+    Route::patch('/categories/{category}', [
+        CategoryController::class,
+        'update',
+    ]);
+
+    Route::delete('/categories/{category}', [
+        CategoryController::class,
+        'destroy',
+    ])->middleware('admin');
 
     /*
     |--------------------------------------------------------------------------
     | Products
     |--------------------------------------------------------------------------
     */
+    Route::get('/products', [
+        ProductController::class,
+        'index',
+    ]);
 
-    Route::apiResource('products', ProductController::class);
+    Route::post('/products', [
+        ProductController::class,
+        'store',
+    ]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Stock Movements
-    |--------------------------------------------------------------------------
-    */
+    Route::get('/products/{product}', [
+        ProductController::class,
+        'show',
+    ]);
+
+    Route::put('/products/{product}', [
+        ProductController::class,
+        'update',
+    ]);
+
+    Route::patch('/products/{product}', [
+        ProductController::class,
+        'update',
+    ]);
+
+    Route::delete('/products/{product}', [
+        ProductController::class,
+        'destroy',
+    ])->middleware('admin');
 
     Route::get('/products/{product}/stock-movements', [
         StockMovementController::class,
@@ -176,11 +201,7 @@ Route::middleware([
     |--------------------------------------------------------------------------
     | Business
     |--------------------------------------------------------------------------
-    |
-    | Business name can only be changed by the admin.
-    |
     */
-
     Route::patch('/business', [
         UserController::class,
         'updateBusiness',
@@ -188,13 +209,9 @@ Route::middleware([
 
     /*
     |--------------------------------------------------------------------------
-    | User Management
+    | Users
     |--------------------------------------------------------------------------
-    |
-    | Only admins can view users and change roles.
-    |
     */
-
     Route::get('/users', [
         UserController::class,
         'index',
@@ -207,58 +224,29 @@ Route::middleware([
 
     /*
     |--------------------------------------------------------------------------
-    | Manager Invitations
+    | Invitations
     |--------------------------------------------------------------------------
-    |
-    | Admins can send invitations.
-    |
     */
-
     Route::post('/invitations', [
         InvitationController::class,
         'store',
     ])->middleware('admin');
 
-    /*
-    |--------------------------------------------------------------------------
-    | Accept Existing Account Invitation
-    |--------------------------------------------------------------------------
-    |
-    | The invited user must already be authenticated and verified.
-    |
-    */
-
     Route::post('/invitations/accept', [
         InvitationController::class,
         'accept',
     ]);
-
 });
 
 /*
 |--------------------------------------------------------------------------
-| Invitation Details
+| Public Invitations
 |--------------------------------------------------------------------------
-|
-| This endpoint is public because an invited person may not have
-| an account yet. The token itself identifies the invitation.
-|
 */
-
 Route::get('/invitations/{token}', [
     InvitationController::class,
     'show',
 ]);
-
-/*
-|--------------------------------------------------------------------------
-| Complete New Manager Account
-|--------------------------------------------------------------------------
-|
-| A person without an existing account can create their account
-| directly from an invitation.
-|
-*/
 
 Route::post('/invitations/complete', [
     InvitationController::class,

@@ -56,6 +56,19 @@ class AppServiceProvider extends ServiceProvider
                     . $request->ip()
                 );
         });
+
+        RateLimiter::for('password-reset', function (Request $request) {
+            return Limit::perMinute(5)
+                ->by(
+                    strtolower((string) $request->input('email'))
+                    . '|'
+                    . $request->ip()
+                );
+        });
+
+        RateLimiter::for('registration', function (Request $request) {
+            return Limit::perMinute(5)
+                ->by($request->ip());
+        });
     }
 }
-
