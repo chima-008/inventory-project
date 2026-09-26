@@ -13,11 +13,6 @@ use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-/*
-|--------------------------------------------------------------------------
-| Health Check
-|--------------------------------------------------------------------------
-*/
 Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
@@ -27,9 +22,10 @@ Route::get('/health', function () {
 
 /*
 |--------------------------------------------------------------------------
-| Authentication
+| Public Authentication Routes
 |--------------------------------------------------------------------------
 */
+
 Route::post('/register', [
     AuthController::class,
     'register',
@@ -55,6 +51,7 @@ Route::post('/reset-password', [
 | Email Verification
 |--------------------------------------------------------------------------
 */
+
 Route::get('/email/verify/{id}/{hash}', [
     EmailVerificationController::class,
     'verify',
@@ -64,18 +61,16 @@ Route::get('/email/verify/{id}/{hash}', [
 ])->name('verification.verify');
 
 Route::post('/email/verification-notification', [
-    EmailVerificationController::class,
-    'send',
-])->middleware([
-    'auth:sanctum',
-    'throttle:verification',
-]);
+    AuthController::class,
+    'resendVerification',
+])->middleware('throttle:verification');
 
 /*
 |--------------------------------------------------------------------------
-| Google OAuth
+| Google Authentication
 |--------------------------------------------------------------------------
 */
+
 Route::get('/auth/google', [
     GoogleAuthController::class,
     'redirect',
@@ -93,13 +88,20 @@ Route::post('/auth/google/exchange', [
 
 /*
 |--------------------------------------------------------------------------
-| Authenticated User
+| Authenticated Routes
 |--------------------------------------------------------------------------
 */
+
 Route::middleware([
     'auth:sanctum',
     'verified',
 ])->group(function () {
+    /*
+    |--------------------------------------------------------------------------
+    | Current User
+    |--------------------------------------------------------------------------
+    */
+
     Route::get('/user', function (Request $request) {
         return response()->json([
             'data' => new \App\Http\Resources\UserResource(
@@ -113,6 +115,12 @@ Route::middleware([
         'updateProfile',
     ]);
 
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard
+    |--------------------------------------------------------------------------
+    */
+
     Route::get('/dashboard/summary', [
         DashboardController::class,
         'summary',
@@ -123,6 +131,7 @@ Route::middleware([
     | Categories
     |--------------------------------------------------------------------------
     */
+
     Route::get('/categories', [
         CategoryController::class,
         'index',
@@ -158,6 +167,7 @@ Route::middleware([
     | Products
     |--------------------------------------------------------------------------
     */
+
     Route::get('/products', [
         ProductController::class,
         'index',
@@ -188,6 +198,12 @@ Route::middleware([
         'destroy',
     ])->middleware('admin');
 
+    /*
+    |--------------------------------------------------------------------------
+    | Stock Movements
+    |--------------------------------------------------------------------------
+    */
+
     Route::get('/products/{product}/stock-movements', [
         StockMovementController::class,
         'index',
@@ -203,6 +219,7 @@ Route::middleware([
     | Business
     |--------------------------------------------------------------------------
     */
+
     Route::patch('/business', [
         UserController::class,
         'updateBusiness',
@@ -213,6 +230,7 @@ Route::middleware([
     | Users
     |--------------------------------------------------------------------------
     */
+
     Route::get('/users', [
         UserController::class,
         'index',
@@ -228,6 +246,7 @@ Route::middleware([
     | Invitations
     |--------------------------------------------------------------------------
     */
+
     Route::post('/invitations', [
         InvitationController::class,
         'store',
@@ -241,9 +260,10 @@ Route::middleware([
 
 /*
 |--------------------------------------------------------------------------
-| Public Invitations
+| Public Invitation Routes
 |--------------------------------------------------------------------------
 */
+
 Route::get('/invitations/{token}', [
     InvitationController::class,
     'show',
