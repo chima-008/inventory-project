@@ -93,4 +93,12 @@ class User extends Authenticatable implements MustVerifyEmail, CanResetPassword
             $resetUrl
         );
     }
+
+        public function sentInvitations(): HasMany
+    {
+        return $this->hasMany(
+            Invitation::class,
+            'invited_by'
+        );
+    }
 }
