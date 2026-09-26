@@ -66,52 +66,49 @@ class GoogleAuthController extends Controller
 
         $email = strtolower(trim($email));
 
+        /*
+        |--------------------------------------------------------------------------
+        | Existing account
+        |--------------------------------------------------------------------------
+        */
+
         $user = User::where('email', $email)->first();
 
         $rawCode = Str::random(64);
-
-        $codeHash = hash('sha256', $rawCode);
 
         if ($user) {
             if (! $user->hasVerifiedEmail()) {
                 $user->markEmailAsVerified();
             }
 
-            $oauthCode = OAuthLoginCode::create([
+            OAuthLoginCode::create([
                 'user_id' => $user->id,
                 'google_email' => null,
                 'google_name' => null,
-                'code_hash' => $codeHash,
+                'code_hash' => hash('sha256', $rawCode),
                 'expires_at' => now()->addMinutes(2),
             ]);
-
-            logger()->info('Google OAuth code created', [
-                'oauth_code_id' => $oauthCode->id,
-                'user_id' => $user->id,
-                'code_hash' => $codeHash,
-                'expires_at' => $oauthCode->expires_at?->toIso8601String(),
-            ]);
         } else {
-            $oauthCode = OAuthLoginCode::create([
+            /*
+            |--------------------------------------------------------------------------
+            | New Google account
+            |--------------------------------------------------------------------------
+            |
+            | Do not create a Business or User yet.
+            |
+            | The frontend will request the business name, then the exchange
+            | endpoint will create both records atomically.
+            |
+            */
+
+            OAuthLoginCode::create([
                 'user_id' => null,
                 'google_email' => $email,
                 'google_name' => $googleUser->getName(),
-                'code_hash' => $codeHash,
+                'code_hash' => hash('sha256', $rawCode),
                 'expires_at' => now()->addMinutes(2),
             ]);
-
-            logger()->info('Google OAuth code created for new user', [
-                'oauth_code_id' => $oauthCode->id,
-                'google_email' => $email,
-                'code_hash' => $codeHash,
-                'expires_at' => $oauthCode->expires_at?->toIso8601String(),
-            ]);
         }
-
-        logger()->info('Google OAuth callback redirecting', [
-            'oauth_code_id' => $oauthCode->id,
-            'code_hash' => $codeHash,
-        ]);
 
         return redirect()->away(
             $this->frontendUrl(
@@ -140,11 +137,6 @@ class GoogleAuthController extends Controller
             $validated['code']
         );
 
-        logger()->info('Google OAuth exchange started', [
-            'code_hash' => $codeHash,
-            'code_length' => strlen($validated['code']),
-        ]);
-
         $result = DB::transaction(function () use (
             $codeHash,
             $validated
@@ -157,41 +149,13 @@ class GoogleAuthController extends Controller
                 ->lockForUpdate()
                 ->first();
 
-            logger()->info('Google OAuth exchange lookup', [
-                'code_hash' => $codeHash,
-                'found' => (bool) $oauthCode,
-                'oauth_code_id' => $oauthCode?->id,
-                'user_id' => $oauthCode?->user_id,
-                'used_at' => $oauthCode?->used_at?->toIso8601String(),
-                'expires_at' => $oauthCode?->expires_at?->toIso8601String(),
-            ]);
-
             if (! $oauthCode) {
-                $matchingCode = OAuthLoginCode::where(
-                    'code_hash',
-                    $codeHash
-                )->first();
-
-                logger()->warning('Google OAuth code not usable', [
-                    'code_hash' => $codeHash,
-                    'matching_record_exists' => (bool) $matchingCode,
-                    'matching_record_id' => $matchingCode?->id,
-                    'matching_record_user_id' => $matchingCode?->user_id,
-                    'matching_record_used_at' => $matchingCode?->used_at?->toIso8601String(),
-                    'matching_record_expires_at' => $matchingCode?->expires_at?->toIso8601String(),
-                ]);
-
                 return [
                     'status' => 'invalid',
                 ];
             }
 
             if ($oauthCode->expires_at->isPast()) {
-                logger()->warning('Google OAuth code expired', [
-                    'oauth_code_id' => $oauthCode->id,
-                    'expires_at' => $oauthCode->expires_at->toIso8601String(),
-                ]);
-
                 $oauthCode->update([
                     'used_at' => now(),
                 ]);
@@ -200,6 +164,12 @@ class GoogleAuthController extends Controller
                     'status' => 'expired',
                 ];
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Existing user
+            |--------------------------------------------------------------------------
+            */
 
             if ($oauthCode->user_id) {
                 $user = $oauthCode->user;
@@ -224,11 +194,24 @@ class GoogleAuthController extends Controller
                 ];
             }
 
+            /*
+            |--------------------------------------------------------------------------
+            | New Google user
+            |--------------------------------------------------------------------------
+            */
+
             if (! $oauthCode->google_email) {
                 return [
                     'status' => 'invalid',
                 ];
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | First exchange:
+            | ask frontend for business name without consuming the code.
+            |--------------------------------------------------------------------------
+            */
 
             $businessName = trim(
                 (string) ($validated['business_name'] ?? '')
@@ -239,6 +222,13 @@ class GoogleAuthController extends Controller
                     'status' => 'requires_business_name',
                 ];
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Protect against the email being registered between the Google
+            | callback and this exchange.
+            |--------------------------------------------------------------------------
+            */
 
             $existingUser = User::where(
                 'email',
@@ -267,6 +257,12 @@ class GoogleAuthController extends Controller
                     'token' => $token,
                 ];
             }
+
+            /*
+            |--------------------------------------------------------------------------
+            | Create business + user atomically
+            |--------------------------------------------------------------------------
+            */
 
             $business = Business::create([
                 'name' => $businessName,
