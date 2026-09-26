@@ -88,6 +88,7 @@ Route::get('/auth/google/callback', [
 
 Route::post('/auth/google/exchange', [
     GoogleAuthController::class,
+    'exchangeCode',
 ]);
 
 /*
