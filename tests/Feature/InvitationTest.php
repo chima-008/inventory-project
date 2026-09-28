@@ -16,8 +16,6 @@ class InvitationTest extends TestCase
 
     public function test_admin_can_send_manager_invitation(): void
     {
-    
-
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -25,9 +23,9 @@ class InvitationTest extends TestCase
         Sanctum::actingAs($admin);
 
         $this->mock(BrevoMailService::class, function ($mock) {
-    $mock->shouldReceive('sendManagerInvitationEmail')
-        ->once();
-});
+            $mock->shouldReceive('sendManagerInvitationEmail')
+                ->once();
+        });
 
         $response = $this->postJson('/api/invitations', [
             'email' => 'manager@example.com',
@@ -51,8 +49,6 @@ class InvitationTest extends TestCase
 
     public function test_manager_cannot_send_invitation(): void
     {
-     
-
         $manager = User::factory()->create([
             'role' => 'manager',
         ]);
@@ -73,8 +69,6 @@ class InvitationTest extends TestCase
 
     public function test_admin_cannot_invite_themselves(): void
     {
-        
-
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -97,8 +91,6 @@ class InvitationTest extends TestCase
 
     public function test_admin_cannot_invite_existing_member(): void
     {
-        
-
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -127,8 +119,6 @@ class InvitationTest extends TestCase
 
     public function test_admin_cannot_invite_user_from_another_business(): void
     {
-        
-
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -161,8 +151,6 @@ class InvitationTest extends TestCase
 
     public function test_duplicate_pending_invitation_is_rejected(): void
     {
-
-
         $admin = User::factory()->create([
             'role' => 'admin',
         ]);
@@ -333,10 +321,22 @@ class InvitationTest extends TestCase
                 'data.business.id',
                 $admin->business_id
             )
+            ->assertJsonPath(
+                'account_created',
+                true
+            )
+            ->assertJsonPath(
+                'login_required',
+                true
+            )
+            ->assertJsonMissingPath(
+                'token'
+            )
             ->assertJsonStructure([
                 'data',
                 'message',
-                'token',
+                'account_created',
+                'login_required',
             ]);
 
         $this->assertDatabaseHas('users', [
@@ -357,6 +357,97 @@ class InvitationTest extends TestCase
         $this->assertNotNull(
             $invitation->accepted_at
         );
+
+        $user = User::where(
+            'email',
+            'newmanager@example.com'
+        )->first();
+
+        $this->assertNotNull($user);
+
+        $this->assertTrue(
+            Hash::check(
+                'password123',
+                $user->password
+            )
+        );
+
+        $this->assertNull(
+            $user->tokens()->first()
+        );
+    }
+
+    public function test_new_manager_must_login_after_completing_invitation(): void
+    {
+        $admin = User::factory()->create([
+            'role' => 'admin',
+        ]);
+
+        $token = 'manager-login-required-token';
+
+        Invitation::create([
+            'business_id' => $admin->business_id,
+            'invited_by' => $admin->id,
+            'email' => 'loginmanager@example.com',
+            'role' => 'manager',
+            'token_hash' => hash(
+                'sha256',
+                $token
+            ),
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $completionResponse = $this->postJson(
+            '/api/invitations/complete',
+            [
+                'token' => $token,
+                'name' => 'Login Manager',
+                'password' => 'password123',
+                'password_confirmation' => 'password123',
+            ]
+        );
+
+        $completionResponse
+            ->assertCreated()
+            ->assertJsonPath(
+                'account_created',
+                true
+            )
+            ->assertJsonPath(
+                'login_required',
+                true
+            )
+            ->assertJsonMissingPath(
+                'token'
+            );
+
+        $loginResponse = $this->postJson(
+            '/api/login',
+            [
+                'email' => 'loginmanager@example.com',
+                'password' => 'password123',
+            ]
+        );
+
+        $loginResponse
+            ->assertOk()
+            ->assertJsonPath(
+                'message',
+                'Login successful.'
+            )
+            ->assertJsonPath(
+                'user.email',
+                'loginmanager@example.com'
+            )
+            ->assertJsonPath(
+                'user.role',
+                'manager'
+            )
+            ->assertJsonStructure([
+                'message',
+                'user',
+                'token',
+            ]);
     }
 
     public function test_completed_invitation_cannot_be_used_again(): void

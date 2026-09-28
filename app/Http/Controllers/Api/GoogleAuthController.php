@@ -94,10 +94,10 @@ class GoogleAuthController extends Controller
             | New Google account
             |--------------------------------------------------------------------------
             |
-            | Do not create a Business or User yet.
+            | Do not create the Business or User yet.
             |
             | The frontend will request the business name, then the exchange
-            | endpoint will create both records atomically.
+            | endpoint will create both records.
             |
             */
 
@@ -287,13 +287,18 @@ class GoogleAuthController extends Controller
                 'used_at' => now(),
             ]);
 
-            $token = $user
-                ->createToken('inventory-api')
-                ->plainTextToken;
+            /*
+            |--------------------------------------------------------------------------
+            | Important:
+            | Do NOT create a Sanctum token here.
+            |
+            | This is a brand-new account. The user will be redirected
+            | to the login page and will sign in with Google again.
+            |--------------------------------------------------------------------------
+            */
 
             return [
-                'status' => 'success',
-                'token' => $token,
+                'status' => 'account_created',
             ];
         });
 
@@ -316,6 +321,15 @@ class GoogleAuthController extends Controller
                 'message' =>
                     'Please provide your business name to continue.',
                 'requires_business_name' => true,
+            ]);
+        }
+
+        if ($result['status'] === 'account_created') {
+            return response()->json([
+                'message' =>
+                    'Your account has been created successfully. Please sign in to continue.',
+                'account_created' => true,
+                'login_required' => true,
             ]);
         }
 

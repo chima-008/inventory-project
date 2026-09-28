@@ -322,55 +322,64 @@ class InvitationController extends Controller
         }
 
         $user = DB::transaction(
-            function () use (
-                $validated,
-                $invitation,
-                $email
-            ) {
-                $user = User::create([
-                    'business_id' =>
-                        $invitation->business_id,
+    function () use (
+        $validated,
+        $invitation,
+        $email
+    ) {
+        $user = User::create([
+            'business_id' =>
+                $invitation->business_id,
 
-                    'name' =>
-                        trim($validated['name']),
+            'name' =>
+                trim($validated['name']),
 
-                    'email' =>
-                        $email,
+            'email' =>
+                $email,
 
-                    'password' =>
-                        Hash::make(
-                            $validated['password']
-                        ),
+            'password' =>
+                Hash::make(
+                    $validated['password']
+                ),
 
-                    'role' =>
-                        UserRole::MANAGER,
+            'role' =>
+                UserRole::MANAGER,
+        ]);
 
-                    'email_verified_at' =>
-                        now(),
-                ]);
+        $user->forceFill([
+            'email_verified_at' => now(),
+        ])->save();
 
-                $invitation->update([
-                    'accepted_at' =>
-                        now(),
-                ]);
+        $invitation->forceFill([
+            'accepted_at' => now(),
+        ])->save();
 
-                return $user;
-            }
-        );
+        return $user;
+    }
+);
 
-        $token = $user->createToken(
-            'invitation-login'
-        )->plainTextToken;
+        /*
+        |--------------------------------------------------------------------------
+        | Important:
+        | Do NOT create a Sanctum token here.
+        |
+        | A newly created manager must sign in through the normal
+        | login flow before accessing the dashboard.
+        |--------------------------------------------------------------------------
+        */
 
         $user->load('business');
 
         return UserResource::make($user)
             ->additional([
                 'message' =>
-                    'Invitation accepted and account created successfully.',
+                    'Invitation accepted and manager account created successfully.',
 
-                'token' =>
-                    $token,
+                'account_created' =>
+                    true,
+
+                'login_required' =>
+                    true,
             ]);
     }
 
