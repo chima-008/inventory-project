@@ -1,92 +1,158 @@
 # Inventory Management API
 
-A full-stack inventory management backend built with Laravel 12 and PostgreSQL, designed around secure authentication, multi-business data isolation, role-based access control, inventory management, and production deployment.
+A full-stack-ready inventory management REST API built with **Laravel 12, PHP, PostgreSQL, and Laravel Sanctum**.
 
-The API powers a separate Next.js inventory management dashboard.
+The API provides authentication, user management, business profiles, products, categories, stock movements, invitations, dashboard statistics, email verification, password recovery, and Google authentication.
 
-> **Commercial project:** This repository is primarily intended to demonstrate the engineering work and architecture behind the application. Commercial deployment, customization, licensing, and redistribution are separate from this public project documentation.
+The backend is designed to work with a separate Next.js frontend.
 
 ---
 
-## Overview
+# Live Deployment
 
-The Inventory Management API provides the backend infrastructure for a business inventory management platform.
+**Production API:** inventory-api-utcf.onrender.com
 
-It allows businesses to manage:
+**Production Frontend:** inventory-dashboard-sand-alpha.vercel.app
 
-* Products
-* Categories
-* Stock levels
+**Frontend Repository:** chima-008/inventory-dashboard
+
+**Backend Repository:** chima-008/inventory-project
+
+---
+
+# Overview
+
+The Inventory Management API provides the backend services for a business inventory management application.
+
+It is responsible for:
+
+* Authentication
+* Authorization
+* User accounts
+* Business profiles
+* User invitations
+* Product management
+* Category management
 * Stock movements
-* Users
-* User roles
-* Inventory analytics
+* Dashboard statistics
+* Email verification
+* Password recovery
+* Google authentication
+* Database persistence
+* API validation
 
-The application uses a **multi-business architecture**, meaning users and inventory records are associated with a specific business.
-
-This provides the foundation for a multi-tenant SaaS-style architecture.
+The frontend communicates with the API through HTTP requests.
 
 ---
 
-## Core Features
+# Tech Stack
 
-### Authentication
+## Backend
+
+* Laravel 12
+* PHP 8.2+
+* PostgreSQL
+* Eloquent ORM
+* Laravel Sanctum
+* Laravel Mail
+* Laravel Storage
+
+## Authentication
+
+* Laravel Sanctum
+* Email verification
+* Password reset
+* Google OAuth
+
+## Deployment
+
+* Backend: Render
+* Database: PostgreSQL on Render
+* Frontend: Vercel
+* Source control: GitHub
+
+---
+
+# Architecture
+
+```text
+┌───────────────────────────────────┐
+│          Next.js Frontend         │
+│             Vercel                │
+│                                   │
+│  Dashboard                        │
+│  Products                         │
+│  Categories                       │
+│  Stock                            │
+│  Users                            │
+│  Authentication                   │
+└─────────────────┬─────────────────┘
+                  │
+                  │ HTTPS / REST API
+                  ▼
+┌───────────────────────────────────┐
+│           Laravel API             │
+│             Render                │
+│                                   │
+│  Authentication                   │
+│  Products                         │
+│  Categories                       │
+│  Stock Movements                  │
+│  Users / Roles                    │
+│  Invitations                      │
+│  Dashboard Summary                │
+│  Business / Profile               │
+└─────────────────┬─────────────────┘
+                  │
+                  │ Eloquent
+                  ▼
+┌───────────────────────────────────┐
+│       PostgreSQL Database         │
+│             Render                │
+└───────────────────────────────────┘
+```
+
+---
+
+# Features
+
+## Authentication
 
 The API supports:
 
-* Email/password registration
+* User registration
+* Login
+* Authenticated user retrieval
 * Email verification
 * Verification email resend
-* Secure login
-* Logout
 * Password reset
-* Password recovery
-* Google OAuth
-* Laravel Sanctum authentication
-* Authentication throttling
-* Protected API routes
-
-### Multi-Business Data Isolation
-
-Every user belongs to a business.
-
-Inventory resources are associated with the relevant business through `business_id`.
-
-Conceptually:
-
-```text
-Business A
-├── Users
-├── Categories
-├── Products
-└── Stock Movements
-
-Business B
-├── Users
-├── Categories
-├── Products
-└── Stock Movements
-```
-
-This ensures the application can support multiple independent businesses without mixing their inventory data.
+* Google authentication
 
 ---
 
-## User Roles
+## User Management
 
-The application currently supports:
+The API supports:
 
-* **Admin**
-* **Manager**
+* Listing users
+* Updating user roles
+* Updating user profiles
+* Updating business information
 
-Administrative operations are protected using role-based middleware.
+Authorization is enforced by the backend.
 
-Examples include:
+---
 
-* Product deletion
-* Category deletion
-* User management
-* User role changes
+## Invitations
+
+The API provides a multi-user invitation workflow.
+
+Supported operations include:
+
+* Create invitation
+* View invitation
+* Accept invitation
+* Complete invitation
 
 ---
 
@@ -96,424 +162,289 @@ The API supports:
 
 * Product creation
 * Product listing
-* Product details
+* Product retrieval
 * Product updates
 * Product deletion
-* Product categories
-* SKU management
-* Unique slugs
+* Category relationships
 * Product pricing
 * Stock quantities
 * Low-stock thresholds
-* Active/inactive products
-* Soft deletion
-* Low-stock queries
+* Active/inactive product status
 
 ---
 
 ## Category Management
 
-Businesses can manage their inventory categories through the API.
+The API supports:
 
-Supported operations include:
-
-* Create category
-* List categories
-* View category
-* Update category
-* Delete category
-
-Categories are business-scoped.
+* Category creation
+* Category listing
+* Category retrieval
+* Category updates
+* Category deletion
 
 ---
 
 ## Stock Management
 
-Products can have stock movements recorded against them.
+Products can have stock movement records.
 
-The system supports:
+The API supports:
 
-* Stock additions
-* Stock reductions
-* Movement quantities
-* Movement history
-* Movement types
-* User attribution
-
-This creates an auditable inventory history rather than simply changing a product's quantity without context.
+* Listing stock movements
+* Creating stock movements
+* Associating movements with products
+* Maintaining inventory history
 
 ---
 
-## Dashboard Analytics
+## Dashboard Summary
 
-The dashboard API provides inventory-level business metrics including:
+The API provides a dashboard summary endpoint containing inventory statistics.
 
-* Total products
-* Total categories
-* Total stock units
-* Low-stock count
-* Out-of-stock count
-* Inventory value
-
-Example endpoint:
+The summary includes:
 
 ```text
-GET /api/dashboard/summary
+total_products
+total_categories
+total_stock_units
+low_stock_count
+out_of_stock_count
+inventory_value
 ```
+
+These values are consumed by the frontend dashboard.
 
 ---
 
-# Authentication Architecture
+# Production Environment
 
-## Email Authentication
+The application is deployed on Render.
+
+Production API:
 
 ```text
-Registration
-     │
-     ▼
-Create Business
-     │
-     ▼
-Create User
-     │
-     ▼
-Send Verification Email
-     │
-     ▼
-Verify Email
-     │
-     ▼
-Login
-     │
-     ▼
-Sanctum Token
-     │
-     ▼
-Authenticated Requests
+https://inventory-api-utcf.onrender.com
 ```
 
-## Google OAuth
-
-Google authentication uses Laravel Socialite.
-
-The flow is separated into two stages:
+Production API base path:
 
 ```text
-Next.js
-   │
-   ▼
-Laravel Google OAuth
-   │
-   ▼
-Google
-   │
-   ▼
-OAuth Callback
-   │
-   ▼
-Find/Create User
-   │
-   ▼
-Short-lived OAuth Code
-   │
-   ▼
-Next.js Callback
-   │
-   ▼
-Code Exchange
-   │
-   ▼
-Sanctum Token
-   │
-   ▼
-HTTP-only Cookie
-   │
-   ▼
-Dashboard
+https://inventory-api-utcf.onrender.com/api
 ```
 
-OAuth handoff codes are:
-
-* Randomly generated
-* Stored as SHA-256 hashes
-* Short-lived
-* Single-use
-* Protected against concurrent reuse
-
-Google-authenticated users are also marked as having a verified email because Google has already verified the identity's email address.
-
----
-
-# Transactional Email
-
-Brevo is used for transactional email delivery.
-
-The API sends:
-
-* Email verification emails
-* Password reset emails
-
-The application uses the Brevo HTTP API rather than depending on SMTP connectivity.
-
----
-
-# Technology Stack
-
-## Backend
-
-* Laravel 12
-* PHP 8.2
-* Laravel Sanctum
-* Laravel Socialite
-* PostgreSQL
-* Eloquent ORM
-* REST API
-* PHPUnit
-
-## Frontend
-
-The backend API is consumed by a separate:
-
-* Next.js application
-* TypeScript
-* Tailwind CSS
-
-## External Services
-
-* Google OAuth
-* Brevo
-
-## Infrastructure
-
-* GitHub
-* Render
-* PostgreSQL
-* Vercel
-
----
-
-# System Architecture
+The deployed frontend is:
 
 ```text
-                     ┌───────────────────────────┐
-                     │      Next.js Frontend     │
-                     │                           │
-                     │ Dashboard                 │
-                     │ Products                  │
-                     │ Categories                │
-                     │ Stock                     │
-                     │ Users                     │
-                     └─────────────┬─────────────┘
-                                   │
-                                   │ HTTPS / JSON
-                                   ▼
-                     ┌───────────────────────────┐
-                     │       Laravel API         │
-                     │                           │
-                     │ Controllers               │
-                     │ Requests                  │
-                     │ Resources                 │
-                     │ Middleware                │
-                     │ Authentication            │
-                     └─────────────┬─────────────┘
-                                   │
-               ┌───────────────────┼───────────────────┐
-               │                   │                   │
-               ▼                   ▼                   ▼
-        ┌────────────┐       ┌────────────┐      ┌────────────┐
-        │ PostgreSQL │       │   Brevo    │      │   Google   │
-        │            │       │            │      │   OAuth    │
-        │ Application│       │ Transaction│      │            │
-        │    Data    │       │   Email    │      │ Identity   │
-        └────────────┘       └────────────┘      └────────────┘
+https://inventory-dashboard-sand-alpha.vercel.app
 ```
 
----
-
-# API Structure
-
-The API is organized around several major areas.
-
-```text
-Authentication
-├── Register
-├── Login
-├── Logout
-├── Email verification
-├── Verification resend
-├── Forgot password
-├── Reset password
-└── Google OAuth
-
-Inventory
-├── Products
-├── Categories
-└── Stock movements
-
-Dashboard
-└── Inventory summary
-
-Users
-├── List users
-└── Update user roles
-
-System
-└── Health check
-```
-
----
-
-# Security
-
-Security considerations implemented in the application include:
-
-* Laravel Sanctum authentication
-* Verified-email middleware
-* Authentication throttling
-* Registration throttling
-* Password reset throttling
-* Verification throttling
-* Role-based authorization
-* Business-level data isolation
-* Hashed passwords
-* Hashed OAuth handoff codes
-* Short-lived OAuth codes
-* Single-use OAuth codes
-* HTTP-only authentication cookies
-* Signed verification URLs
-* Environment-based secrets
-* Production debug mode disabled
-
-Secrets such as API keys, OAuth client secrets, database credentials, and application keys are stored in environment variables and are not committed to source control.
-
----
-
-# Testing
-
-The backend currently has a fully passing automated test suite.
-
-```text
-84 / 84 tests passed
-372 assertions
-```
-
-Authentication and application behavior were tested after implementing:
-
-* Email registration
-* Email verification
-* Password reset
-* Google OAuth
-* Sanctum authentication
-* Protected API routes
-* Role-based access
-* Business-scoped data
-
-The final authentication implementation was verified against the production application after deployment.
-
----
-
-# Health Check
-
-The API provides a health endpoint:
-
-```text
-GET /api/health
-```
-
-Successful response:
-
-```json
-{
-    "status": "ok",
-    "service": "inventory-api"
-}
-```
-
-This endpoint is also used to verify that the deployed API is responding correctly.
-
----
-
-# Production Architecture
-
-The application is deployed using separate frontend and backend services.
-
-```text
-GitHub
-   │
-   ├──────────────► Vercel
-   │                  │
-   │                  │ Next.js
-   │                  ▼
-   │            Inventory Dashboard
-   │
-   └──────────────► Render
-                      │
-                      │ Laravel API
-                      ▼
-                  PostgreSQL
-```
-
-The frontend communicates with the Laravel backend through HTTPS API requests.
-
----
-
-# Environment Configuration
-
-The application uses environment variables for deployment-specific configuration.
-
-Examples include:
+The production frontend URL is supplied to the backend through:
 
 ```env
-APP_URL=
-FRONTEND_URL=
-
-DB_CONNECTION=
-DB_HOST=
-DB_PORT=
-DB_DATABASE=
-DB_USERNAME=
-DB_PASSWORD=
-
-BREVO_API_KEY=
-BREVO_SENDER_EMAIL=
-BREVO_SENDER_NAME=
-
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URI=
+FRONTEND_URL=https://inventory-dashboard-sand-alpha.vercel.app
 ```
 
-Actual production credentials are intentionally excluded from the repository.
+---
+
+# Environment Variables
+
+Production environment variables must be configured through Render's environment settings.
+
+Never commit production credentials to GitHub.
+
+A safe production configuration has the following structure:
+
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=your_application_key
+APP_URL=https://inventory-api-utcf.onrender.com
+
+DB_CONNECTION=pgsql
+DB_URL=your_postgresql_connection_string
+
+FRONTEND_URL=https://inventory-dashboard-sand-alpha.vercel.app
+
+MAIL_MAILER=smtp
+MAIL_HOST=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_USERNAME=your_smtp_username
+MAIL_PASSWORD=your_smtp_password
+MAIL_FROM_ADDRESS=your_sender_email
+MAIL_FROM_NAME="Inventory Dashboard"
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=https://inventory-api-utcf.onrender.com/api/auth/google/callback
+```
+
+### Important
+
+The following values must remain private:
+
+* `APP_KEY`
+* `DB_URL`
+* Database passwords
+* SMTP passwords
+* Google client secrets
+* API keys
+
+They belong in Render's environment configuration, not in the repository.
 
 ---
 
 # Local Development
 
-Install PHP dependencies:
+Local development uses a separate configuration from production.
+
+Typical local architecture:
+
+```text
+Next.js
+localhost:3000
+      │
+      ▼
+Laravel
+127.0.0.1:8000
+      │
+      ▼
+Local PostgreSQL
+127.0.0.1:5432
+```
+
+---
+
+# Requirements
+
+Install:
+
+* PHP 8.2+
+* Composer
+* PostgreSQL
+* Git
+* Node.js/npm if running the frontend
+
+Verify PHP:
+
+```bash
+php -v
+```
+
+Verify Composer:
+
+```bash
+composer -V
+```
+
+---
+
+# Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/chima-008/inventory-project.git
+```
+
+Move into the project:
+
+```bash
+cd inventory-project
+```
+
+Install dependencies:
 
 ```bash
 composer install
 ```
 
-Create the environment configuration:
+Create the environment file:
 
 ```bash
 cp .env.example .env
 ```
 
-Generate the application key:
+Generate the Laravel application key:
 
 ```bash
 php artisan key:generate
 ```
 
-Configure the database and required environment variables.
+---
 
-Run migrations:
+# Local Environment Configuration
+
+A local PostgreSQL setup can use:
+
+```env
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost
+
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=inventory_project
+DB_USERNAME=postgres
+DB_PASSWORD=your_local_database_password
+
+FRONTEND_URL=http://localhost:3000
+```
+
+Configure mail and Google OAuth credentials separately when those features are required locally.
+
+Never copy production secrets into a public repository.
+
+---
+
+# Database Setup
+
+Create a PostgreSQL database named:
+
+```text
+inventory_project
+```
+
+Then run migrations:
 
 ```bash
 php artisan migrate
 ```
+
+If seed data is configured:
+
+```bash
+php artisan db:seed
+```
+
+Or:
+
+```bash
+php artisan migrate --seed
+```
+
+To rebuild the database during development:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Use `migrate:fresh` carefully because it deletes existing database tables and data.
+
+---
+
+# Storage
+
+Create Laravel's storage link when required:
+
+```bash
+php artisan storage:link
+```
+
+---
+
+# Running the API
 
 Start the Laravel development server:
 
@@ -521,7 +452,599 @@ Start the Laravel development server:
 php artisan serve
 ```
 
-Run the test suite:
+The local API will normally be available at:
+
+```text
+http://127.0.0.1:8000
+```
+
+API base URL:
+
+```text
+http://127.0.0.1:8000/api
+```
+
+---
+
+# API Reference
+
+## Health
+
+```http
+GET /api/health
+```
+
+Checks whether the API is responding.
+
+---
+
+# Authentication
+
+## Register
+
+```http
+POST /api/register
+```
+
+## Login
+
+```http
+POST /api/login
+```
+
+## Current User
+
+```http
+GET /api/user
+```
+
+## Resend Email Verification
+
+```http
+POST /api/email/verification-notification
+```
+
+## Verify Email
+
+```http
+GET /api/email/verify/{id}/{hash}
+```
+
+## Forgot Password
+
+```http
+POST /api/forgot-password
+```
+
+## Reset Password
+
+```http
+POST /api/reset-password
+```
+
+---
+
+# Google Authentication
+
+## Redirect to Google
+
+```http
+GET /api/auth/google
+```
+
+## Google Callback
+
+```http
+GET /api/auth/google/callback
+```
+
+## Exchange Authentication Code
+
+```http
+POST /api/auth/google/exchange
+```
+
+Production callback:
+
+```text
+https://inventory-api-utcf.onrender.com/api/auth/google/callback
+```
+
+The production callback must also be registered with the corresponding Google OAuth application.
+
+---
+
+# Products
+
+## List Products
+
+```http
+GET /api/products
+```
+
+## Create Product
+
+```http
+POST /api/products
+```
+
+## View Product
+
+```http
+GET /api/products/{product}
+```
+
+## Update Product
+
+```http
+PUT /api/products/{product}
+```
+
+or:
+
+```http
+PATCH /api/products/{product}
+```
+
+## Delete Product
+
+```http
+DELETE /api/products/{product}
+```
+
+---
+
+# Categories
+
+## List Categories
+
+```http
+GET /api/categories
+```
+
+## Create Category
+
+```http
+POST /api/categories
+```
+
+## View Category
+
+```http
+GET /api/categories/{category}
+```
+
+## Update Category
+
+```http
+PUT /api/categories/{category}
+```
+
+or:
+
+```http
+PATCH /api/categories/{category}
+```
+
+## Delete Category
+
+```http
+DELETE /api/categories/{category}
+```
+
+---
+
+# Stock Movements
+
+## List Product Stock Movements
+
+```http
+GET /api/products/{product}/stock-movements
+```
+
+## Create Stock Movement
+
+```http
+POST /api/products/{product}/stock-movements
+```
+
+---
+
+# Dashboard
+
+## Inventory Summary
+
+```http
+GET /api/dashboard/summary
+```
+
+Returns dashboard statistics including:
+
+```text
+total_products
+total_categories
+total_stock_units
+low_stock_count
+out_of_stock_count
+inventory_value
+```
+
+---
+
+# Users
+
+## List Users
+
+```http
+GET /api/users
+```
+
+## Update User Role
+
+```http
+PATCH /api/users/{user}/role
+```
+
+---
+
+# Profile and Business
+
+## Update User Profile
+
+```http
+PATCH /api/user/profile
+```
+
+## Update Business
+
+```http
+PATCH /api/business
+```
+
+---
+
+# Invitations
+
+## Create Invitation
+
+```http
+POST /api/invitations
+```
+
+## View Invitation
+
+```http
+GET /api/invitations/{token}
+```
+
+## Accept Invitation
+
+```http
+POST /api/invitations/accept
+```
+
+## Complete Invitation
+
+```http
+POST /api/invitations/complete
+```
+
+---
+
+# Current Route Summary
+
+The backend currently exposes the following major API groups:
+
+```text
+Authentication
+├── POST   /api/register
+├── POST   /api/login
+├── GET    /api/user
+├── POST   /api/email/verification-notification
+├── GET    /api/email/verify/{id}/{hash}
+├── POST   /api/forgot-password
+└── POST   /api/reset-password
+
+Google Authentication
+├── GET    /api/auth/google
+├── GET    /api/auth/google/callback
+└── POST   /api/auth/google/exchange
+
+Business / Profile
+├── PATCH  /api/business
+└── PATCH  /api/user/profile
+
+Products
+├── GET    /api/products
+├── POST   /api/products
+├── GET    /api/products/{product}
+├── PUT    /api/products/{product}
+├── PATCH  /api/products/{product}
+└── DELETE /api/products/{product}
+
+Categories
+├── GET    /api/categories
+├── POST   /api/categories
+├── GET    /api/categories/{category}
+├── PUT    /api/categories/{category}
+├── PATCH  /api/categories/{category}
+└── DELETE /api/categories/{category}
+
+Stock Movements
+├── GET    /api/products/{product}/stock-movements
+└── POST   /api/products/{product}/stock-movements
+
+Dashboard
+└── GET    /api/dashboard/summary
+
+Users
+├── GET    /api/users
+└── PATCH  /api/users/{user}/role
+
+Invitations
+├── POST   /api/invitations
+├── GET    /api/invitations/{token}
+├── POST   /api/invitations/accept
+└── POST   /api/invitations/complete
+
+System
+└── GET    /api/health
+```
+
+Use the following command whenever you need to verify the authoritative route list for the current version:
+
+```bash
+php artisan route:list
+```
+
+---
+
+# Database
+
+The application uses PostgreSQL.
+
+## Local
+
+Local development can use:
+
+```env
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=inventory_project
+DB_USERNAME=postgres
+DB_PASSWORD=your_password
+```
+
+## Production
+
+The Render deployment uses a PostgreSQL connection configured through an environment variable.
+
+For security, the actual production connection string is intentionally not documented.
+
+Example:
+
+```env
+DB_CONNECTION=pgsql
+DB_URL=your_render_postgresql_connection_string
+```
+
+---
+
+# Data Model
+
+The inventory system contains several major entities.
+
+```text
+User
+ │
+ ├── Profile
+ ├── Business
+ └── Roles / Access
+       │
+       ├── Products
+       │      │
+       │      ├── Category
+       │      └── Stock Movements
+       │
+       └── Invitations
+```
+
+Products are associated with categories and can have stock movement records.
+
+---
+
+# Product Data
+
+Products contain inventory-related information such as:
+
+```text
+id
+category_id
+name
+slug
+sku
+description
+price
+stock_quantity
+low_stock_threshold
+is_active
+created_at
+updated_at
+deleted_at
+```
+
+The product model supports soft deletion.
+
+Product identifiers such as SKU and slug are designed to be unique.
+
+---
+
+# Inventory Calculations
+
+The backend calculates inventory value using product price and stock quantity.
+
+Conceptually:
+
+```text
+Inventory Value =
+Σ (Product Stock Quantity × Product Price)
+```
+
+The dashboard summary endpoint returns the resulting value to the frontend.
+
+---
+
+# Validation
+
+Validation is performed by the backend before data is persisted.
+
+Validation can cover:
+
+* Required fields
+* Data types
+* Numeric values
+* Unique fields
+* Database relationships
+* Authentication requirements
+* Authorization requirements
+
+Frontend validation should be considered a user-experience layer, not the primary security boundary.
+
+---
+
+# Authorization
+
+The backend is the authoritative source for authorization.
+
+Frontend UI restrictions are not sufficient protection.
+
+Protected operations must be enforced server-side so that users cannot bypass permissions by manually sending API requests.
+
+---
+
+# Email
+
+The application supports email functionality for:
+
+* Email verification
+* Password recovery
+* Invitations
+
+The production deployment uses an SMTP mail configuration.
+
+Example:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_USERNAME=your_smtp_username
+MAIL_PASSWORD=your_smtp_password
+MAIL_FROM_ADDRESS=your_sender_email
+MAIL_FROM_NAME="Inventory Dashboard"
+```
+
+Credentials must be configured through Render environment variables.
+
+---
+
+# Project Structure
+
+```text
+inventory-project/
+│
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/
+│   │   ├── Requests/
+│   │   └── Resources/
+│   │
+│   ├── Models/
+│   └── ...
+│
+├── bootstrap/
+├── config/
+│
+├── database/
+│   ├── factories/
+│   ├── migrations/
+│   └── seeders/
+│
+├── public/
+├── resources/
+├── routes/
+│   ├── api.php
+│   └── web.php
+│
+├── storage/
+├── tests/
+│
+├── .env.example
+├── artisan
+├── composer.json
+└── README.md
+```
+
+---
+
+# Development Commands
+
+## Start server
+
+```bash
+php artisan serve
+```
+
+## Run migrations
+
+```bash
+php artisan migrate
+```
+
+## Seed database
+
+```bash
+php artisan db:seed
+```
+
+## Migrate and seed
+
+```bash
+php artisan migrate --seed
+```
+
+## Rebuild development database
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+## Clear cached configuration
+
+```bash
+php artisan optimize:clear
+```
+
+## Create storage link
+
+```bash
+php artisan storage:link
+```
+
+## Run queue worker
+
+```bash
+php artisan queue:work
+```
+
+## List routes
+
+```bash
+php artisan route:list
+```
+
+## Run tests
 
 ```bash
 php artisan test
@@ -529,81 +1052,232 @@ php artisan test
 
 ---
 
-# Engineering Highlights
+# Deployment
 
-This project demonstrates practical experience with:
+The backend is deployed to Render.
 
-* Laravel API development
-* RESTful API design
+Production URL:
+
+```text
+https://inventory-api-utcf.onrender.com
+```
+
+The production environment should have:
+
+```text
+APP_ENV=production
+APP_DEBUG=false
+```
+
+Production environment variables should be configured through Render.
+
+Do not commit production secrets to GitHub.
+
+---
+
+# Production Deployment Checklist
+
+Before deploying:
+
+* [ ] `APP_ENV=production`
+* [ ] `APP_DEBUG=false`
+* [ ] Production `APP_KEY` configured
+* [ ] PostgreSQL connection configured
+* [ ] Frontend URL configured
+* [ ] Mail configuration configured
+* [ ] Google OAuth credentials configured
+* [ ] Google callback URL registered
+* [ ] HTTPS enabled
+* [ ] Database migrations completed
+* [ ] Storage configured where required
+* [ ] Authorization tested
+* [ ] Authentication tested
+* [ ] Critical API endpoints tested
+
+---
+
+# Security
+
+Never commit:
+
+* `.env`
+* Database passwords
+* PostgreSQL connection strings
+* SMTP passwords
+* Google client secrets
+* API keys
+* Laravel application keys
+
+Production secrets belong in Render's environment configuration.
+
+The repository should contain only safe configuration examples.
+
+---
+
+# Testing Checklist
+
+## Authentication
+
+* [ ] Registration works
+* [ ] Login works
+* [ ] Invalid credentials are rejected
+* [ ] Email verification works
+* [ ] Password reset works
+* [ ] Google authentication works
+* [ ] Protected endpoints reject unauthenticated requests
+
+## Products
+
+* [ ] Product listing works
+* [ ] Product creation works
+* [ ] Product retrieval works
+* [ ] Product updates work
+* [ ] Product deletion works
+* [ ] Product validation works
+
+## Categories
+
+* [ ] Category listing works
+* [ ] Category creation works
+* [ ] Category retrieval works
+* [ ] Category updates work
+* [ ] Category deletion works
+
+## Stock
+
+* [ ] Stock movement listing works
+* [ ] Stock movement creation works
+* [ ] Inventory quantities update correctly
+
+## Users
+
+* [ ] User listing works
+* [ ] Role updates are protected
+* [ ] Profile updates work
+* [ ] Business updates work
+
+## Invitations
+
+* [ ] Invitations can be created
+* [ ] Invitation information can be retrieved
+* [ ] Invitations can be accepted
+* [ ] Invitation completion works
+
+## Dashboard
+
+* [ ] Summary endpoint responds
+* [ ] Product totals are correct
+* [ ] Category totals are correct
+* [ ] Stock totals are correct
+* [ ] Low-stock count is correct
+* [ ] Out-of-stock count is correct
+* [ ] Inventory value is correct
+
+---
+
+# Known Limitations
+
+The current API focuses on inventory management and account functionality.
+
+Potential future features include:
+
+* Suppliers
+* Purchase orders
+* Sales orders
+* Barcode management
+* Advanced reporting
+* Audit logs
+* Automated notifications
+* Scheduled low-stock alerts
+* Advanced analytics
+* More granular permissions
+* Multi-business tenancy
+* Accounting integrations
+
+---
+
+# Future Improvements
+
+Potential technical improvements include:
+
+* API versioning
+* More extensive automated testing
+* API documentation generation
+* Pagination for larger datasets
+* Advanced search and filtering
+* Rate limiting
+* Audit logging
+* Background processing
+* More granular permission management
+* Expanded inventory analytics
+
+---
+
+# Frontend Application
+
+The corresponding frontend is a Next.js application deployed on Vercel.
+
+Production frontend:
+
+```text
+https://inventory-dashboard-sand-alpha.vercel.app
+```
+
+Frontend repository:
+
+```text
+https://github.com/chima-008/inventory-dashboard.git
+```
+
+Backend repository:
+
+```text
+https://github.com/chima-008/inventory-project.git
+```
+
+---
+
+# Project Purpose
+
+This project demonstrates practical full-stack application development using Laravel, PostgreSQL, REST APIs, authentication, and a separate Next.js frontend.
+
+It demonstrates experience with:
+
+* Laravel
+* PHP
 * PostgreSQL
 * Eloquent ORM
-* Database migrations
-* Authentication architecture
-* OAuth integration
+* REST API development
 * Laravel Sanctum
-* Role-based authorization
-* Multi-business data isolation
-* Transactional email
-* API security
-* Automated testing
-* Production deployment
-* Frontend/backend separation
-* SaaS-oriented architecture
-
----
-
-# Project Status
-
-The core inventory management platform is implemented and deployed.
-
-### Completed
-
-* Production Laravel API
-* Production Next.js dashboard
-* PostgreSQL database
-* Email/password authentication
+* Authentication
+* Authorization
 * Email verification
-* Password reset
+* Password recovery
 * Google OAuth
-* Sanctum authentication
-* Multi-business architecture
-* Admin/manager roles
-* Product management
-* Category management
-* Stock management
-* Dashboard analytics
-* Production health check
-* Automated backend testing
-
-### Current verification
-
-**84/84 backend tests passing.**
+* CRUD operations
+* Database relationships
+* Validation
+* User roles
+* Invitations
+* Inventory management
+* Stock movement tracking
+* Business dashboards
+* Production deployment
 
 ---
 
-# Commercial Use
+# Author
 
-This project is part of a professional development and portfolio project.
+**Ojeh Chimamanda**
 
-The public repository documentation is intended to demonstrate the architecture, engineering decisions, and capabilities of the system.
+Full-stack developer focused on building practical business applications, dashboards, APIs, and modern web systems.
 
-Commercial versions may include:
-
-* Private source code
-* Business-specific customization
-* Branding
-* Deployment
-* Additional modules
-* Custom integrations
-* Data migration
-* Maintenance and support
-
-Commercial licensing and usage rights should be agreed upon separately with the developer.
+GitHub: **chima-008**
 
 ---
 
 # License
 
-No open-source license is granted by this repository unless a separate license file explicitly states otherwise.
+This project is intended for portfolio, demonstration, and commercial development purposes.
 
-All rights not expressly granted are reserved by the project owner.
+If distributed as a reusable template or commercial product, provide the applicable license and usage terms.
